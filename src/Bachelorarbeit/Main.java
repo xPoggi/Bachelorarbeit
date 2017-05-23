@@ -25,86 +25,34 @@ public class Main{
         //Z3 Ausgabe umstellen.(nicht mehr SMT sondern einfache Variablen mit deren boolischen Werten)
         ctx.setPrintMode(Z3_ast_print_mode.Z3_PRINT_LOW_LEVEL);
 
-        List<BoolExpr> planung = checkPlanung(klausuren, raume, termin, ctx);
-        List<String[]>models = check(ctx, planung, Status.SATISFIABLE);
-        List<Termin> geplanteTermine = evalKlausuren(models, klausuren, raume);
+        List<BoolExpr> planung = mkliterals(klausuren, raume, termin, ctx);
+        System.out.println(checkModel(planung, ctx));
     }
 
-    public static List<Termin> evalKlausuren(List<String[]> models, List<Klausur> klausuren, List<Raum> raeume) throws addFailExeption{
-        List<Termin> ret = new LinkedList<>();
-        Klausur ktemp = null;
-        Raum rtemp = null;
-        Termin ttemp = null;
-        for(String[] arr : models){
-            if(arr[1].contains("true\n")){
-                String[] klausurundraum = arr[0].split("_");
-                //-----richtige Klausur finden------
-                for(int i = 0; i < klausuren.size(); i++){
-                    if(klausurundraum[0].equals(klausuren.get(i).getName())){
-                        ktemp = klausuren.get(i);
-                        break;
-                    }
-                }
-                //-----richtigen Raum finden------
-                for(int i = 0; i < raeume.size(); i++){
-                    if(klausurundraum[1].contains(raeume.get(i).getName())){
-                        rtemp = raeume.get(i);
-                        break;
-                    }
-                }
-                boolean addedKlausur = false;
-                if(ktemp != null && rtemp != null){
-                    ttemp = new Termin(ktemp, rtemp);
-                    for(Termin t : ret){
-                        if(t.getDatum().equals(ttemp.getDatum())){
-                            t.addKlausur(ktemp);
-                            addedKlausur = true;
-                            break;
-                        }else{
-                            addedKlausur = false;
-                        }
-                    }
-
-                }
-                if(!addedKlausur)
-                    ret.add(ttemp);
-            }
-        }
-        return ret;
-    }
-
-    public static List<String[]> check (Context ctx, List<BoolExpr> functions, Status sat) throws TestFailedException, Z3Exception{
-        List<String[]> ret = new LinkedList<>();
+    public static Model checkModel(List<BoolExpr> litterals, Context ctx) throws Z3Exception, TestFailedException{
         Solver s = ctx.mkSolver();
+        s.reset();
 
-        for(BoolExpr expr : functions) {
-            s.reset();
-            s.add(expr);
-            if (s.check() != sat)
-                throw new TestFailedException();
-            if (sat == Status.SATISFIABLE) {
-                System.out.println(s.getModel());
-                //System.out.println(s.getModel().evaluate(expr, true));
-            }
+        for(BoolExpr b : litterals){
+            s.add(b);
         }
-        return ret;
+
+        if(s.check() != Status.SATISFIABLE){
+            throw new TestFailedException();
+        }else{
+            return s.getModel();
+        }
     }
 
-    public static List<BoolExpr> checkPlanung (List<Klausur> klausur, List<Raum> raum,List<Termin> termin, Context ctx)throws TestFailedException, Z3Exception{
+    public static List<BoolExpr> mkliterals (List<Klausur> klausur, List<Raum> raum,List<Termin> termin, Context ctx)throws TestFailedException, Z3Exception{
         List<BoolExpr> ret = new LinkedList<BoolExpr>();
         List<BoolExpr> klausurlist = new LinkedList<BoolExpr>();
-        List<BoolExpr> raumlist = new LinkedList<BoolExpr>();
-        List<BoolExpr> terminlist = new LinkedList<BoolExpr>();
         List<BoolExpr> andlist = new LinkedList<BoolExpr>();
         List<BoolExpr> orlist = new LinkedList<BoolExpr>();
         List<BoolExpr> impllist = new LinkedList<BoolExpr>();
         BoolExpr[][][] literals = new BoolExpr[klausur.size()][raum.size()][termin.size()];
-        Solver s = ctx.mkSolver();
-        s.reset();
 
-        int m = 0;
-        int l = 0;
-        int k = 0;
+        int m = 0, l, k;
         for(Klausur a : klausur){
             l = 0;
             for(Raum b: raum){
@@ -113,7 +61,6 @@ public class Main{
                     BoolExpr temp = ctx.mkBoolConst(a.getName()+"_"+b.getName()+"_"+c.getName());
                     andlist.add(temp);
                     orlist.add(temp);
-                    //s.add(temp);
                     literals[m][l][k] = temp;
                     k++;
                 }
@@ -127,9 +74,8 @@ public class Main{
         }
         BoolExpr[] tempand = new BoolExpr[klausurlist.size()];
         tempand = klausurlist.toArray(tempand);
-        s.add(ctx.mkAnd(tempand));
+        ret.add(ctx.mkAnd(tempand));
 
-        int i;
         for(m = 0; m < klausur.size(); m++){
             for(l = 0; l < raum.size(); l++){
                 for(k = 0; k < termin.size(); k++){
@@ -155,46 +101,10 @@ public class Main{
         }
 
         for(BoolExpr imp : impllist){
-            s.add(imp);
+            ret.add(imp);
         }
 
-        System.out.println(s);
-
-        if (s.check() != Status.SATISFIABLE)
-            throw new TestFailedException();
-        else
-            System.out.println(s.getModel());
         return ret;
-    }
-
-    public static void prove(Context ctx, BoolExpr f, boolean useMBQI) throws TestFailedException, Z3Exception {
-        BoolExpr[] assumptions = new BoolExpr[0];
-        prove(ctx, f, useMBQI, assumptions);
-    }
-
-    public static void prove(Context ctx, BoolExpr f, boolean useMBQI,
-               BoolExpr... assumptions) throws TestFailedException, Z3Exception {
-        System.out.println("Proving: " + f);
-        Solver s = ctx.mkSolver();
-        Params p = ctx.mkParams();
-        p.add("mbqi", useMBQI);
-        s.setParameters(p);
-        for (BoolExpr a : assumptions)
-            s.add(a);
-        s.add(ctx.mkNot(f));
-        Status q = s.check();
-
-        switch (q)
-        {
-            case UNKNOWN:
-                System.out.println("Unknown because: " + s.getReasonUnknown());
-                break;
-            case SATISFIABLE:
-                throw new TestFailedException();
-            case UNSATISFIABLE:
-                System.out.println("OK, proof: " + s.getProof());
-                break;
-        }
     }
 
     public static List<Klausur> readFilesKlausur(String file) throws IOException{
