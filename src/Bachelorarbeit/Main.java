@@ -2,7 +2,6 @@ package Bachelorarbeit;
 
 import com.microsoft.z3.*;
 import com.microsoft.z3.enumerations.Z3_ast_print_mode;
-import com.sun.org.apache.xpath.internal.operations.Bool;
 
 import java.io.*;
 import java.util.*;
@@ -25,15 +24,15 @@ public class Main{
         //Z3 Ausgabe umstellen.(nicht mehr SMT sondern einfache Variablen mit deren boolischen Werten)
         ctx.setPrintMode(Z3_ast_print_mode.Z3_PRINT_LOW_LEVEL);
 
-        List<BoolExpr> planung = mkliterals(klausuren, raume, termin, ctx);
+        List<BoolExpr> planung = mkConstrains(klausuren, raume, termin, ctx);
         System.out.println(checkModel(planung, ctx));
     }
 
-    public static Model checkModel(List<BoolExpr> litterals, Context ctx) throws Z3Exception, TestFailedException{
+    public static Model checkModel(List<BoolExpr> formulas, Context ctx) throws Z3Exception, TestFailedException{
         Solver s = ctx.mkSolver();
         s.reset();
 
-        for(BoolExpr b : litterals){
+        for(BoolExpr b : formulas){
             s.add(b);
         }
 
@@ -44,7 +43,7 @@ public class Main{
         }
     }
 
-    public static List<BoolExpr> mkliterals (List<Klausur> klausur, List<Raum> raum,List<Termin> termin, Context ctx)throws TestFailedException, Z3Exception{
+    public static List<BoolExpr> mkConstrains (List<Klausur> klausur, List<Raum> raum,List<Termin> termin, Context ctx)throws TestFailedException, Z3Exception{
         List<BoolExpr> ret = new LinkedList<BoolExpr>();
         List<BoolExpr> klausurlist = new LinkedList<BoolExpr>();
         List<BoolExpr> andlist = new LinkedList<BoolExpr>();
