@@ -2,7 +2,6 @@ package Bachelorarbeit;
 
 import com.microsoft.z3.*;
 import com.microsoft.z3.enumerations.Z3_ast_print_mode;
-import com.sun.org.apache.xpath.internal.operations.Bool;
 
 import java.io.*;
 import java.util.*;
@@ -45,57 +44,65 @@ public class Main{
     }
 
     public static List<BoolExpr> mkliterals (List<Klausur> klausur, List<Raum> raum,List<Termin> termin, Context ctx)throws TestFailedException, Z3Exception{
+        //---------------Declaration start---------------------
         List<BoolExpr> ret = new LinkedList<BoolExpr>();
         List<BoolExpr> klausurlist = new LinkedList<BoolExpr>();
         List<BoolExpr> andlist = new LinkedList<BoolExpr>();
         List<BoolExpr> orlist = new LinkedList<BoolExpr>();
         List<BoolExpr> impllist = new LinkedList<BoolExpr>();
         BoolExpr[][][] literals = new BoolExpr[klausur.size()][raum.size()][termin.size()];
+        BoolExpr[] temparray;
+        //---------------Declaration ende----------------------
 
-        int m = 0, l, k;
+        int pointer1 = 0, pointer2, pointer3;
         for(Klausur a : klausur){
-            l = 0;
+            pointer2 = 0;
             for(Raum b: raum){
-                k = 0;
+                pointer3 = 0;
                 for(Termin c : termin){
+                    //Erstellt eine BoolExpr mit dem Namen der jeweiligen Opjekte
+                    //zum Beispiel: K1_R1_T1
                     BoolExpr temp = ctx.mkBoolConst(a.getName()+"_"+b.getName()+"_"+c.getName());
+                    //Fühgt diese der andlist, der orlist und dem Array der Litterale hinzu.
                     andlist.add(temp);
                     orlist.add(temp);
-                    literals[m][l][k] = temp;
-                    k++;
+                    literals[pointer1][pointer2][pointer3] = temp;
+                    pointer3++;
                 }
-                l++;
+                pointer2++;
             }
-            m++;
-            BoolExpr[] tm = new BoolExpr[orlist.size()];
-            tm = orlist.toArray(tm);
-            klausurlist.add(ctx.mkOr(tm));
+            pointer1++;
+            //Fühgt alles aus der orlist der Klausurlist als BoolExpr or hinzu.
+            //Hier mit wird eine or-Kette erzeugt, die nachher dafür genutzt wird eine dieser Litterale mit war zu testen.
+            temparray = new BoolExpr[orlist.size()];
+            temparray = orlist.toArray(temparray);
+            klausurlist.add(ctx.mkOr(temparray));
             orlist.clear();
         }
-        BoolExpr[] tempand = new BoolExpr[klausurlist.size()];
-        tempand = klausurlist.toArray(tempand);
-        ret.add(ctx.mkAnd(tempand));
+        temparray = new BoolExpr[klausurlist.size()];
+        temparray = klausurlist.toArray(temparray);
+        ret.add(ctx.mkAnd(temparray));
 
-        for(m = 0; m < klausur.size(); m++){
-            for(l = 0; l < raum.size(); l++){
-                for(k = 0; k < termin.size(); k++){
-                    BoolExpr[] temparr = new BoolExpr[raum.size()*termin.size()-1+klausur.size()-1];
+        for(int m = 0; m < klausur.size(); m++){
+            for(int l = 0; l < raum.size(); l++){
+                for(int k = 0; k < termin.size(); k++){
+                    temparray = new BoolExpr[raum.size()*termin.size()-1+klausur.size()-1];
                     int index = 0;
                     for(int ra = 0; ra < raum.size(); ra++){
                         for(int te = 0; te < termin.size(); te++){
                             if(ra != l || te != k){
-                                temparr[index] = literals[m][ra][te];
+                                temparray[index] = literals[m][ra][te];
                                 index++;
                             }
                         }
                     }
                     for(int kla = 0; kla < klausur.size(); kla++){
                         if(kla != m){
-                            temparr[index] = literals[kla][l][k];
+                            temparray[index] = literals[kla][l][k];
                             index++;
                         }
                     }
-                    impllist.add(ctx.mkImplies(literals[m][l][k], ctx.mkNot(ctx.mkOr(temparr))));
+                    impllist.add(ctx.mkImplies(literals[m][l][k], ctx.mkNot(ctx.mkOr(temparray))));
                 }
             }
         }
