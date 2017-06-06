@@ -1,7 +1,7 @@
 package Bachelorarbeit;
 
 import com.microsoft.z3.*;
-import com.microsoft.z3.enumerations.Z3_ast_print_mode;
+import com.microsoft.z3.enumerations.*;
 
 import java.io.*;
 import java.util.*;
@@ -24,7 +24,7 @@ public class Main{
         //Z3 Ausgabe umstellen.(nicht mehr SMT sondern einfache Variablen mit deren boolischen Werten)
         ctx.setPrintMode(Z3_ast_print_mode.Z3_PRINT_LOW_LEVEL);
 
-        List<BoolExpr> planung = mkliterals(klausuren, raume, termin, ctx);
+        List<BoolExpr> planung = mkConstraints(klausuren, raume, termin, ctx);
         System.out.println(checkModel(planung, ctx));
     }
 
@@ -43,7 +43,7 @@ public class Main{
         }
     }
 
-    public static List<BoolExpr> mkliterals (List<Klausur> klausur, List<Raum> raum,List<Termin> termin, Context ctx)throws TestFailedException, Z3Exception{
+    public static List<BoolExpr> mkConstraints (List<Klausur> klausur, List<Raum> raum,List<Termin> termin, Context ctx)throws TestFailedException, Z3Exception{
         //---------------Declaration start---------------------
         List<BoolExpr> ret = new LinkedList<BoolExpr>();
         List<BoolExpr> klausurlist = new LinkedList<BoolExpr>();
@@ -57,9 +57,9 @@ public class Main{
         int pointer1 = 0, pointer2, pointer3;
         for(Klausur a : klausur){
             pointer2 = 0;
-            for(Raum b: raum){
+            for(Termin b : termin){
                 pointer3 = 0;
-                for(Termin c : termin){
+                for(Raum c: raum){
                     //Erstellt eine BoolExpr mit dem Namen der jeweiligen Opjekte
                     //zum Beispiel: K1_R1_T1
                     BoolExpr temp = ctx.mkBoolConst(a.getName()+"_"+b.getName()+"_"+c.getName());
@@ -68,6 +68,11 @@ public class Main{
                     orlist.add(temp);
                     literals[pointer1][pointer2][pointer3] = temp;
                     pointer3++;
+                    switch(a.getClassify()){
+                        case 'A':;
+                        case 'B':;
+                        case 'C':;
+                    }
                 }
                 pointer2++;
             }
@@ -112,6 +117,15 @@ public class Main{
         }
 
         return ret;
+    }
+
+    public static BoolExpr checkKlausurSplitt(Klausur k, Termin t, Raum r){
+        switch(k.getClassify()){
+            case 'A': ;
+            case 'B': ;
+            case 'C': ;
+        }
+        return null;
     }
 
     public static List<Klausur> readFilesKlausur(String file) throws IOException{
