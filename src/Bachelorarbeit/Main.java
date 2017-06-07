@@ -8,27 +8,95 @@ import java.util.*;
 
 /**
  * Created by Poggi on 19.04.2017.
+ * Planning-program for FH-Luebeck
  */
 
 public class Main{
     public static void main(String[] args) throws Z3Exception, IOException, TestFailedException, addFailExeption{
         //Daten einlesen.
-        List<Klausur> klausuren = readFilesKlausur("Klausur.csv");
-        List<Raum> raume = readFilesRaume("Raum.csv");
-        List<Termin> termin = readFilesTermin("Termin.csv");
+        List<Klausur> klausuren = readFilesKlausur(args[0]);
+        List<Termin> termin = readFilesTermin(args[1]);
+        List<Raum> raume = readFilesRaume(args[2]);
 
         //Z3 Context erstellen um SAT-Solver Nutzen zu können.
-        HashMap<String, String> cfg = new HashMap<String, String>();
+        HashMap<String, String> cfg = new HashMap<>();
         cfg.put("Model", "true");
         Context ctx = new Context(cfg);
         //Z3 Ausgabe umstellen.(nicht mehr SMT sondern einfache Variablen mit deren boolischen Werten)
         ctx.setPrintMode(Z3_ast_print_mode.Z3_PRINT_LOW_LEVEL);
 
-        List<BoolExpr> planung = mkConstraints(klausuren, raume, termin, ctx);
+        List<BoolExpr> planung = mkConstraints(klausuren, termin, raume, ctx);
         System.out.println(checkModel(planung, ctx));
     }
 
-    public static Model checkModel(List<BoolExpr> litterals, Context ctx) throws Z3Exception, TestFailedException{
+    private static List<BoolExpr> mkConstraints (List<Klausur> klausur, List<Termin> termin, List<Raum> raum, Context ctx)throws TestFailedException, Z3Exception{
+        //---------------Declaration start-------------------------
+        List<BoolExpr> ret = new LinkedList<>();
+        List<BoolExpr> or_list = new LinkedList<>();
+        List<BoolExpr> overall_literals = new LinkedList<>();
+        List<BoolExpr> implication_list = new LinkedList<>();
+        BoolExpr[][][] all_literals = new BoolExpr[klausur.size()][termin.size()][raum.size()];
+        BoolExpr[] temp_array;
+        //---------------Declaration end---------------------------
+
+        //---------------Creating or-literals----------------------
+        for(int k = 0; k < klausur.size(); k++){
+            for(int t = 0; t < termin.size(); t++){
+                for(int r = 0; r < raum.size(); r++){
+                    BoolExpr temp_literal = ctx.mkBoolConst(klausur.get(k).getName()+"_"+termin.get(t).getName()+"_"+raum.get(r).getName());
+                    or_list.add(temp_literal);
+                    all_literals[k][t][r] = temp_literal;
+                }
+            }
+            temp_array = new BoolExpr[or_list.size()];
+            temp_array = or_list.toArray(temp_array);
+            overall_literals.add(ctx.mkOr(temp_array));
+            or_list.clear();
+        }
+        //---------------Creating or-literals end------------------
+        //---------------------------------------------------------
+        //---------------Creating and-linkage between or's---------
+        temp_array = new BoolExpr[overall_literals.size()];
+        temp_array = overall_literals.toArray(temp_array);
+        ret.add(ctx.mkAnd(temp_array));
+        //---------------Creating and-linkage end------------------
+
+        //---------------Creating implications---------------------
+        for(int k = 0; k < klausur.size(); k++){
+            for(int t = 0; t < termin.size(); t++){
+                for(int r = 0; r < raum.size(); r++){
+                    temp_array = new BoolExpr[raum.size()*termin.size()-1+klausur.size()-1];
+                    int temp_array_index = 0;
+                    //implications for Klausur not in other roo's or at other termin
+                    //---------------Start---------------------
+                    for(int t_index = 0; t_index < termin.size(); t_index++){
+                        for(int r_index = 0; r_index < raum.size(); r_index++){
+                            if(t != t_index || r != r_index){
+                                temp_array[temp_array_index] = all_literals[k][t_index][r_index];
+                                temp_array_index ++;
+                            }
+                        }
+                    }
+                    //---------------End-----------------------
+                    //implications for no Klausur at the same room and termin
+                    //---------------Start---------------------
+                    for(int k_index = 0; k_index < klausur.size(); k_index ++){
+                        if(k != k_index){
+                            temp_array[temp_array_index] = all_literals[k_index][t][r];
+                            temp_array_index ++;
+                        }
+                    }
+                    //---------------End-----------------------
+                    implication_list.add(ctx.mkImplies(all_literals[k][t][r], ctx.mkNot(ctx.mkOr(temp_array))));
+                }
+            }
+        }
+        //---------------Creating implications end-----------------
+        ret.addAll(implication_list);
+        return ret;
+    }
+
+    private static Model checkModel(List<BoolExpr> litterals, Context ctx) throws Z3Exception, TestFailedException{
         Solver s = ctx.mkSolver();
         s.reset();
 
@@ -43,96 +111,20 @@ public class Main{
         }
     }
 
-    public static List<BoolExpr> mkConstraints (List<Klausur> klausur, List<Raum> raum,List<Termin> termin, Context ctx)throws TestFailedException, Z3Exception{
-        //---------------Declaration start---------------------
-        List<BoolExpr> ret = new LinkedList<BoolExpr>();
-        List<BoolExpr> klausurlist = new LinkedList<BoolExpr>();
-        List<BoolExpr> andlist = new LinkedList<BoolExpr>();
-        List<BoolExpr> orlist = new LinkedList<BoolExpr>();
-        List<BoolExpr> impllist = new LinkedList<BoolExpr>();
-        BoolExpr[][][] literals = new BoolExpr[klausur.size()][raum.size()][termin.size()];
-        BoolExpr[] temparray;
-        //---------------Declaration ende----------------------
-
-        int pointer1 = 0, pointer2, pointer3;
-        for(Klausur a : klausur){
-            pointer2 = 0;
-            for(Termin b : termin){
-                pointer3 = 0;
-                for(Raum c: raum){
-                    //Erstellt eine BoolExpr mit dem Namen der jeweiligen Opjekte
-                    //zum Beispiel: K1_R1_T1
-                    BoolExpr temp = ctx.mkBoolConst(a.getName()+"_"+b.getName()+"_"+c.getName());
-                    //Fühgt diese der andlist, der orlist und dem Array der Litterale hinzu.
-                    andlist.add(temp);
-                    orlist.add(temp);
-                    literals[pointer1][pointer2][pointer3] = temp;
-                    pointer3++;
-                    switch(a.getClassify()){
-                        case 'A':;
-                        case 'B':;
-                        case 'C':;
-                    }
-                }
-                pointer2++;
-            }
-            pointer1++;
-            //Fühgt alles aus der orlist der Klausurlist als BoolExpr or hinzu.
-            //Hier mit wird eine or-Kette erzeugt, die nachher dafür genutzt wird eine dieser Litterale mit war zu testen.
-            temparray = new BoolExpr[orlist.size()];
-            temparray = orlist.toArray(temparray);
-            klausurlist.add(ctx.mkOr(temparray));
-            orlist.clear();
-        }
-        temparray = new BoolExpr[klausurlist.size()];
-        temparray = klausurlist.toArray(temparray);
-        ret.add(ctx.mkAnd(temparray));
-
-        for(int m = 0; m < klausur.size(); m++){
-            for(int l = 0; l < raum.size(); l++){
-                for(int k = 0; k < termin.size(); k++){
-                    temparray = new BoolExpr[raum.size()*termin.size()-1+klausur.size()-1];
-                    int index = 0;
-                    for(int ra = 0; ra < raum.size(); ra++){
-                        for(int te = 0; te < termin.size(); te++){
-                            if(ra != l || te != k){
-                                temparray[index] = literals[m][ra][te];
-                                index++;
-                            }
-                        }
-                    }
-                    for(int kla = 0; kla < klausur.size(); kla++){
-                        if(kla != m){
-                            temparray[index] = literals[kla][l][k];
-                            index++;
-                        }
-                    }
-                    impllist.add(ctx.mkImplies(literals[m][l][k], ctx.mkNot(ctx.mkOr(temparray))));
-                }
-            }
-        }
-
-        for(BoolExpr imp : impllist){
-            ret.add(imp);
-        }
-
-        return ret;
-    }
-
-    public static BoolExpr checkKlausurSplitt(Klausur k, Termin t, Raum r){
+    private static BoolExpr checkKlausurSplitt(Klausur k, Termin t, Raum r){
         switch(k.getClassify()){
-            case 'A': ;
-            case 'B': ;
-            case 'C': ;
+            case 'A':
+            case 'B':
+            case 'C':
         }
         return null;
     }
 
-    public static List<Klausur> readFilesKlausur(String file) throws IOException{
+    private static List<Klausur> readFilesKlausur(String file) throws IOException{
         FileReader f = new FileReader(file);
         BufferedReader r = new BufferedReader(f);
         String[] line;
-        List<Klausur> ret = new LinkedList<Klausur>();
+        List<Klausur> ret = new LinkedList<>();
         r.readLine();
         String temp = r.readLine();
         while(temp != null){
@@ -150,11 +142,11 @@ public class Main{
         return ret;
     }
 
-    public static List<Raum> readFilesRaume(String file) throws IOException{
+    private static List<Raum> readFilesRaume(String file) throws IOException{
         FileReader f = new FileReader(file);
         BufferedReader r = new BufferedReader(f);
         String[] line;
-        List<Raum> ret = new LinkedList<Raum>();
+        List<Raum> ret = new LinkedList<>();
         r.readLine();
         String temp = r.readLine();
         while(temp != null){
@@ -168,8 +160,8 @@ public class Main{
         return ret;
     }
 
-    public static List<Termin> readFilesTermin(String file) throws IOException{
-        List<Termin> ret = new LinkedList<Termin>();
+    private static List<Termin> readFilesTermin(String file) throws IOException{
+        List<Termin> ret = new LinkedList<>();
         FileReader f = new FileReader(file);
         BufferedReader r = new BufferedReader(f);
         String[] line;
@@ -182,19 +174,5 @@ public class Main{
             temp = r.readLine();
         }
         return ret;
-    }
-
-    public static void printKlausuren(List<Klausur> list){
-        for(Klausur k : list){
-            System.out.println(k);
-        }
-        return;
-    }
-
-    public static void printRaeume(List<Raum> list){
-        for(Raum r : list){
-            System.out.println(r);
-        }
-        return;
     }
 }
