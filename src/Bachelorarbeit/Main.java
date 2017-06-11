@@ -13,7 +13,7 @@ import java.util.*;
 
 public class Main{
     public static void main(String[] args) throws Z3Exception, IOException, TestFailedException, addFailExeption{
-        //Daten einlesen.
+        //Read Data.
         List<Klausur> klausuren = readFilesKlausur(args[0]);
         List<Termin> termin = readFilesTermin(args[1]);
         List<Raum> raume = readFilesRaume(args[2]);
@@ -33,10 +33,10 @@ public class Main{
         //---------------Declaration start-------------------------
         List<BoolExpr> ret = new LinkedList<>();
         List<BoolExpr> or_list = new LinkedList<>();
-        List<BoolExpr> overall_literals = new LinkedList<>();
         List<BoolExpr> implication_list = new LinkedList<>();
+        List<BoolExpr> over_all_literals = new LinkedList<>();
         BoolExpr[][][] all_literals = new BoolExpr[klausur.size()][termin.size()][raum.size()];
-        BoolExpr[] temp_array;
+        BoolExpr[] temp_array;//Used to create arrays out of lists.
         //---------------Declaration end---------------------------
 
         //---------------Creating or-literals----------------------
@@ -50,30 +50,28 @@ public class Main{
             }
             temp_array = new BoolExpr[or_list.size()];
             temp_array = or_list.toArray(temp_array);
-            overall_literals.add(ctx.mkOr(temp_array));
+            over_all_literals.add(ctx.mkOr(temp_array));
             or_list.clear();
         }
         //---------------Creating or-literals end------------------
         //---------------------------------------------------------
         //---------------Creating and-linkage between or's---------
-        temp_array = new BoolExpr[overall_literals.size()];
-        temp_array = overall_literals.toArray(temp_array);
+        temp_array = new BoolExpr[over_all_literals.size()];
+        temp_array = over_all_literals.toArray(temp_array);
         ret.add(ctx.mkAnd(temp_array));
+        over_all_literals.clear();
         //---------------Creating and-linkage end------------------
 
         //---------------Creating implications---------------------
         for(int k = 0; k < klausur.size(); k++){
             for(int t = 0; t < termin.size(); t++){
                 for(int r = 0; r < raum.size(); r++){
-                    temp_array = new BoolExpr[raum.size()*termin.size()-1+klausur.size()-1];
-                    int temp_array_index = 0;
-                    //implications for Klausur not in other roo's or at other termin
+                    //implications for Klausur not in other room's or at other termin
                     //---------------Start---------------------
                     for(int t_index = 0; t_index < termin.size(); t_index++){
                         for(int r_index = 0; r_index < raum.size(); r_index++){
                             if(t != t_index || r != r_index){
-                                temp_array[temp_array_index] = all_literals[k][t_index][r_index];
-                                temp_array_index ++;
+                                over_all_literals.add(all_literals[k][t_index][r_index]);
                             }
                         }
                     }
@@ -82,12 +80,14 @@ public class Main{
                     //---------------Start---------------------
                     for(int k_index = 0; k_index < klausur.size(); k_index ++){
                         if(k != k_index){
-                            temp_array[temp_array_index] = all_literals[k_index][t][r];
-                            temp_array_index ++;
+                            over_all_literals.add(all_literals[k_index][t][r]);
                         }
                     }
                     //---------------End-----------------------
+                    temp_array = new BoolExpr[over_all_literals.size()];
+                    temp_array = over_all_literals.toArray(temp_array);
                     implication_list.add(ctx.mkImplies(all_literals[k][t][r], ctx.mkNot(ctx.mkOr(temp_array))));
+                    over_all_literals.clear();
                 }
             }
         }
@@ -111,7 +111,7 @@ public class Main{
         }
     }
 
-    private static BoolExpr checkKlausurSplitt(Klausur k, Termin t, Raum r){
+    private static BoolExpr checkKlausurSplit(Klausur k, Termin t, Raum r){
         switch(k.getClassify()){
             case 'A':
             case 'B':
