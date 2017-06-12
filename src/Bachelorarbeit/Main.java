@@ -33,6 +33,7 @@ public class Main{
         //---------------Declaration start-------------------------
         List<BoolExpr> ret = new LinkedList<>();
         List<BoolExpr> or_list = new LinkedList<>();
+        List<BoolExpr> temp = new LinkedList<>();
         List<BoolExpr> implication_list = new LinkedList<>();
         List<BoolExpr> over_all_literals = new LinkedList<>();
         BoolExpr[][][] all_literals = new BoolExpr[klausur.size()][termin.size()][raum.size()];
@@ -43,9 +44,24 @@ public class Main{
         for(int k = 0; k < klausur.size(); k++){
             for(int t = 0; t < termin.size(); t++){
                 for(int r = 0; r < raum.size(); r++){
-                    BoolExpr temp_literal = ctx.mkBoolConst(klausur.get(k).getName()+"_"+termin.get(t).getName()+"_"+raum.get(r).getName());
-                    or_list.add(temp_literal);
-                    all_literals[k][t][r] = temp_literal;
+                    or_list.add(ctx.mkBoolConst(klausur.get(k).getName()+"_"+termin.get(t).getName()+"_"+raum.get(r).getName()));
+                    all_literals[k][t][r] = ctx.mkBoolConst(klausur.get(k).getName()+"_"+termin.get(t).getName()+"_"+raum.get(r).getName());
+                }
+            }
+            temp_array = new BoolExpr[or_list.size()];
+            temp_array = or_list.toArray(temp_array);
+            over_all_literals.add(ctx.mkOr(temp_array));
+            or_list.clear();
+        }
+        for(int k = 0; k < klausur.size(); k++) {
+            for (int t = 0; t < termin.size(); t++) {
+                for (int r = 0; r < raum.size(); r++) {
+                    for (int r_index = 0; r_index < raum.size(); r_index++) {
+                        if(r != r_index){
+                            or_list.add(ctx.mkAnd(all_literals[k][t][r], all_literals[k][t][r_index]));
+                            temp.add(ctx.mkAnd(all_literals[k][t][r], all_literals[k][t][r_index]));
+                        }
+                    }
                 }
             }
             temp_array = new BoolExpr[or_list.size()];
@@ -90,6 +106,11 @@ public class Main{
                     over_all_literals.clear();
                 }
             }
+        }
+        for(BoolExpr b : temp){
+            Expr left = b.getArgs()[0];
+            Expr right = b.getArgs()[1];
+            System.out.print(left.getSExpr().replace("\n", " ") + " " + right.getSExpr());
         }
         //---------------Creating implications end-----------------
         ret.addAll(implication_list);
