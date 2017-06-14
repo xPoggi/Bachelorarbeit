@@ -32,6 +32,7 @@ public class Main{
     private static List<BoolExpr> mkConstraints (List<Klausur> klausur, List<Termin> termin, List<Raum> raum, Context ctx)throws TestFailedException, Z3Exception{
         //---------------Declaration start-------------------------
         List<BoolExpr> ret = new LinkedList<>();
+        List<BoolExpr> and_list = new LinkedList<>();
         List<BoolExpr> or_list = new LinkedList<>();
         List<BoolExpr> temp = new LinkedList<>();
         List<BoolExpr> implication_list = new LinkedList<>();
@@ -43,27 +44,25 @@ public class Main{
         //---------------Creating or-literals----------------------
         for(int k = 0; k < klausur.size(); k++){
             for(int t = 0; t < termin.size(); t++){
+                //-------------creating no split---------------------
                 for(int r = 0; r < raum.size(); r++){
                     or_list.add(ctx.mkBoolConst(klausur.get(k).getName()+"_"+termin.get(t).getName()+"_"+raum.get(r).getName()));
                     all_literals[k][t][r] = ctx.mkBoolConst(klausur.get(k).getName()+"_"+termin.get(t).getName()+"_"+raum.get(r).getName());
                 }
-            }
-            temp_array = new BoolExpr[or_list.size()];
-            temp_array = or_list.toArray(temp_array);
-            over_all_literals.add(ctx.mkOr(temp_array));
-            or_list.clear();
-        }
-        for(int k = 0; k < klausur.size(); k++) {
-            for (int t = 0; t < termin.size(); t++) {
-                for (int r = 0; r < raum.size(); r++) {
+                //-------------creating split for 2 rooms--------------
+                for(int r = 0; r < raum.size(); r++) {
                     for (int r_index = 0; r_index < raum.size(); r_index++) {
-                        if(r != r_index){
-                            or_list.add(ctx.mkAnd(all_literals[k][t][r], all_literals[k][t][r_index]));
-                            temp.add(ctx.mkAnd(all_literals[k][t][r], all_literals[k][t][r_index]));
+                        if (r != r_index) {
+                            and_list.add(ctx.mkAnd(all_literals[k][t][r], all_literals[k][t][r_index]));
                         }
                     }
                 }
             }
+            temp.addAll(and_list);
+            temp_array = new BoolExpr[and_list.size()];
+            temp_array = and_list.toArray(temp_array);
+            over_all_literals.add(ctx.mkOr(temp_array));
+            and_list.clear();
             temp_array = new BoolExpr[or_list.size()];
             temp_array = or_list.toArray(temp_array);
             over_all_literals.add(ctx.mkOr(temp_array));
@@ -108,9 +107,34 @@ public class Main{
             }
         }
         for(BoolExpr b : temp){
-            Expr left = b.getArgs()[0];
-            Expr right = b.getArgs()[1];
-            System.out.print(left.getSExpr().replace("\n", " ") + " " + right.getSExpr());
+            String left_expr [] = b.getArgs()[0].getSExpr().replace("\n", "").split("_");
+            String right_expr [] = b.getArgs()[1].getSExpr().replace("\n", "").split("_");
+             for(int k = 0; k < klausur.size(); k++) {
+                 for (int t = 0; t < termin.size(); t++) {
+                     for (int r = 0; r < raum.size(); r++) {
+                         boolean klausur_gleich_in_left = all_literals[k][t][r].getSExpr().contains(left_expr[0]);
+                         boolean klausur_gleich_in_right = all_literals[k][t][r].getSExpr().contains(right_expr[0]);
+                         boolean termin_gleich_in_left = all_literals[k][t][r].getSExpr().contains(left_expr[1]);
+                         boolean termin_gleich_in_right = all_literals[k][t][r].getSExpr().contains(right_expr[1]);
+                         boolean raum_gleich_in_left = all_literals[k][t][r].getSExpr().contains(left_expr[2]);
+                         boolean raum_gleich_in_right = all_literals[k][t][r].getSExpr().contains(right_expr[2]);
+                         if (!(klausur_gleich_in_left || klausur_gleich_in_right)&&
+                             (termin_gleich_in_left || termin_gleich_in_right)&&
+                             (raum_gleich_in_left || raum_gleich_in_right)) {
+                             over_all_literals.add(all_literals[k][t][r]);
+                         }
+                         if ((klausur_gleich_in_left || klausur_gleich_in_right)&&!(
+                             (termin_gleich_in_left||termin_gleich_in_right)&&
+                             (raum_gleich_in_left || raum_gleich_in_right))){
+                             over_all_literals.add(all_literals[k][t][r]);
+                        }
+                     }
+                 }
+             }
+            temp_array = new BoolExpr[over_all_literals.size()];
+            temp_array = over_all_literals.toArray(temp_array);
+            implication_list.add(ctx.mkImplies(b, ctx.mkNot(ctx.mkOr(temp_array))));
+            over_all_literals.clear();
         }
         //---------------Creating implications end-----------------
         ret.addAll(implication_list);
