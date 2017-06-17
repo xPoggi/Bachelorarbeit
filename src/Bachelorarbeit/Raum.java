@@ -10,9 +10,6 @@ public class Raum {
     private String Name; //Name des Raumes.
     private String nummer; //Nummer des Raumes.
     private int Kapazitaet;
-    private int Besetzt = 0;
-    private Klausur[] klausuren;
-    private char classify;
 
     /**
      * Erstellt einen Raum mit Namen und Nummer
@@ -23,8 +20,6 @@ public class Raum {
         this.Name = RaumName;
         this.nummer = RaumNummer;
         this.Kapazitaet = Kapazitaet;
-        this.klausuren = new Klausur[5];
-        sortClass();
     }
 
 
@@ -50,27 +45,6 @@ public class Raum {
      */
     public int getKapazitaet(){
         return this.Kapazitaet;
-    }
-
-    /**
-     * @return
-     */
-    public char getClassify(){
-        return this.classify;
-    }
-
-    /**
-     *
-     */
-    private void sortClass(){
-        if(this.Kapazitaet > 0 && this.Kapazitaet <= 25)
-            classify = 'A';
-        else if(this.Kapazitaet > 25 && this.Kapazitaet <= 50)
-            classify = 'B';
-        else if(this.Kapazitaet >= 50)
-            classify = 'C';
-        else classify = 'Z';
-        return;
     }
 
     public String toString(){
