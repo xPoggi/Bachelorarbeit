@@ -1,6 +1,6 @@
 package Bachelorarbeit;
 
-import java.util.Date;
+import java.util.*;
 
 /**
  * Created by Poggi on 21.04.2017.
@@ -11,6 +11,7 @@ public class Klausur {
     private int Dauer; //Dauer der Klausur
     private Date Datum;
     private int Teilnehmer;
+    private HashMap<Termin, Raum> terminmap = new HashMap<>();
 
     /**
      * Erstellt eine Klausur mit Namen und Dauer.
@@ -69,5 +70,13 @@ public class Klausur {
     public String toString(){
         return "Klausur: " + this.Name + "\tTeilnehmer: " + this.Teilnehmer + "\tDatum: "
                 + this.getDatum() + "\tBeginn: " +this.getKlausurStart() + " " + "\tDauer: " + this.getDauer();
+    }
+
+    public HashMap<Termin, Raum> getTerminmap() {
+        return terminmap;
+    }
+
+    public void addTermin (Termin t, Raum r){
+        terminmap.put(t, r);
     }
 }
