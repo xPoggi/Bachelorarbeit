@@ -11,7 +11,7 @@ public class Klausur {
     private int Dauer; //Dauer der Klausur
     private Date Datum;
     private int Teilnehmer;
-    private HashMap<Termin, Raum> terminmap = new HashMap<>();
+    private HashMap<Termin, List<Raum>> terminmap = new HashMap<>();
 
     /**
      * Erstellt eine Klausur mit Namen und Dauer.
@@ -72,11 +72,15 @@ public class Klausur {
                 + this.getDatum() + "\tBeginn: " +this.getKlausurStart() + " " + "\tDauer: " + this.getDauer();
     }
 
-    public HashMap<Termin, Raum> getTerminmap() {
+    public HashMap<Termin, List<Raum>> getTerminmap() {
         return terminmap;
     }
 
-    public void addTermin (Termin t, Raum r){
-        terminmap.put(t, r);
+    public void addTermin (Termin t){
+        terminmap.put(t, new LinkedList<Raum>());
+    }
+
+    public void addRaum (Termin t, Raum r){
+        terminmap.get(t).add(r);
     }
 }

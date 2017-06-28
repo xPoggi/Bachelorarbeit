@@ -30,4 +30,9 @@ public class Termin {
     public Raum getRaum() {
         return raum;
     }
+
+    @Override
+    public String toString() {
+        return "Termin: " + this.name;
+    }
 }

@@ -20,7 +20,7 @@ public class Main{
         String testdata_twosplit = "C:\\Users\\Poggi\\IdeaProjects\\Bachelorarbeit\\test\\twosplit\\";
         String testdata_treesplit = "C:\\Users\\Poggi\\IdeaProjects\\Bachelorarbeit\\test\\treesplit\\";
         String testdata_two_treesplit = "C:\\Users\\Poggi\\IdeaProjects\\Bachelorarbeit\\test\\two_treesplit\\";
-        String datapath = testdata_twosplit;
+        String datapath = testdata_nosplit;
 
         List<Klausur> klausuren = readFilesKlausur(datapath + args[0]);
         List<Raum> raume = readFilesRaume(datapath + args[2]);
@@ -89,7 +89,33 @@ public class Main{
                 for (int t = 0; t < all_termine.size(); t++) {
                     for (int r = 0; r < all_raueme.size(); r++) {
                         if (all_klausuren.get(k).getTeilnehmer() <= all_raueme.get(r).getKapazitaet() && all_raueme.get(r) != all_termine.get(t).getRaum()) {
-                            if(all_klausuren.get(k).getTeilnehmer() <= all_raueme.get(r).getKapazitaet() && all_raueme.get(r) != all_termine.get(t).getRaum()) {
+                            boolean two_klausuren_in_one_room = false;
+                            for(int k_2 = 0; k_2 < all_klausuren.size(); k_2++){
+                                if( k_2 != k && all_klausuren.get(k).getTeilnehmer() + all_klausuren.get(k_2).getTeilnehmer() <= all_raueme.get(r).getKapazitaet()) {
+                                    two_klausuren_in_one_room = true;
+                                    BoolExpr temp = ctx.mkAnd(all_literals[k][t][r], all_literals[k_2][t][r]);
+                                    klausur_is_written_once.add(temp);
+                                    for (int t_index = 0; t_index < all_termine.size(); t_index++) {
+                                        for (int r_index = 0; r_index < all_raueme.size(); r_index++) {
+                                            if (t != t_index || r != r_index) {
+                                                implication_list.add(all_literals[k][t_index][r_index]);
+                                                implication_list.add(all_literals[k_2][t_index][r_index]);
+                                            }
+                                        }
+                                    }
+                                    for (int k_index = 0; k_index < all_klausuren.size(); k_index++) {
+                                        if (k != k_index && k_2 != k_index) {
+                                            implication_list.add(all_literals[k_index][t][r]);
+                                        }
+                                    }
+                                    temp_array = new BoolExpr[implication_list.size()];
+                                    temp_array = implication_list.toArray(temp_array);
+                                    ret.add(ctx.mkImplies(temp, ctx.mkNot(ctx.mkOr(temp_array))));
+                                    implication_list.clear();
+                                    //break;
+                                }
+                            }
+                            if(all_klausuren.get(k).getTeilnehmer() <= all_raueme.get(r).getKapazitaet() && all_raueme.get(r) != all_termine.get(t).getRaum() && !two_klausuren_in_one_room) {
                                 klausur_is_written_once.add(all_literals[k][t][r]);
                                 for (int t_index = 0; t_index < all_termine.size(); t_index++) {
                                     for (int r_index = 0; r_index < all_raueme.size(); r_index++) {
@@ -145,6 +171,7 @@ public class Main{
                                     }
                                     for (int k_index = 0; k_index < all_klausuren.size(); k_index++) {
                                         if (k != k_index) {
+                                            implication_list.add(all_literals[k_index][t][r_2]);
                                             implication_list.add(all_literals[k_index][t][r_1]);
                                         }
                                     }
@@ -258,12 +285,10 @@ public class Main{
             klausur_must_split_two.add(biggestKlausur);
             klausur_not_split.remove(biggestKlausur);
             for(int k = 0; k < all_klausuren.size(); k++){
-                for(int k2 = 0; k2 < klausur_must_split_two.size(); k2++){
-                    if(all_klausuren.get(k).equals(klausur_must_split_two.get(k2))){
-                        klausuren_spliting_map.put(k, 2);
-                    }else{
-                        klausuren_spliting_map.put(k, 1);
-                    }
+                if(klausur_must_split_two.contains(all_klausuren.get(k))){
+                    klausuren_spliting_map.put(k, 2);
+                }else{
+                    klausuren_spliting_map.put(k, 1);
                 }
             }
             part_formulas = mkNoKlausurSplit(all_literals, all_klausuren, termin, raum, ctx, klausuren_spliting_map);
@@ -302,13 +327,11 @@ public class Main{
             biggestKlausur = searchBiggestKlausur(klausur_not_split);
             klausur_must_split_tree.add(biggestKlausur);
             klausur_not_split.remove(biggestKlausur);
-            for (int k = 0; k < all_klausuren.size(); k++) {
-                for (int k2 = 0; k2 < klausur_must_split_tree.size(); k2++) {
-                    if (all_klausuren.get(k).equals(klausur_must_split_tree.get(k2))) {
-                        klausuren_spliting_map.put(k, 3);
-                    } else {
-                        klausuren_spliting_map.put(k, 1);
-                    }
+            for(int k = 0; k < all_klausuren.size(); k++){
+                if(klausur_must_split_tree.contains(all_klausuren.get(k))){
+                    klausuren_spliting_map.put(k, 3);
+                }else{
+                    klausuren_spliting_map.put(k, 1);
                 }
             }
             part_formulas = mkNoKlausurSplit(all_literals, all_klausuren, termin, raum, ctx, klausuren_spliting_map);
@@ -348,12 +371,10 @@ public class Main{
             klausur_must_split_tree.add(biggestKlausur);
             klausur_must_split_two.remove(biggestKlausur);
             for (int k = 0; k < all_klausuren.size(); k++) {
-                for (int k2 = 0; k2 < klausur_must_split_tree.size(); k2++) {
-                    if (all_klausuren.get(k).equals(klausur_must_split_tree.get(k2))) {
-                        klausuren_spliting_map.put(k, 3);
-                    } else {
-                        klausuren_spliting_map.put(k, 2);
-                    }
+                if(klausur_must_split_two.contains(all_klausuren.get(k))){
+                    klausuren_spliting_map.put(k,2);
+                }else{
+                    klausuren_spliting_map.put(k, 3);
                 }
             }
             part_formulas = mkKlausurSplitTwoRooms(all_literals, all_klausuren, termin, raum, ctx, klausuren_spliting_map);
@@ -402,20 +423,13 @@ public class Main{
                 klausur_must_split_two.remove(biggestKlausur);
             }
             for (int k = 0; k < all_klausuren.size(); k++) {
-                for (int k2 = 0; k2 < klausur_must_no_split.size(); k2++) {
-                    if (all_klausuren.get(k).equals(klausur_must_no_split.get(k2))) {
-                        klausuren_spliting_map.put(k, 1);
-                    }
+                if(klausur_must_split_tree.contains(all_klausuren.get(k))){
+                    klausuren_spliting_map.put(k, 3);
                 }
-                for (int k2 = 0; k2 < klausur_must_split_two.size(); k2++) {
-                    if (all_klausuren.get(k).equals(klausur_must_split_two.get(k2))) {
-                        klausuren_spliting_map.put(k, 2);
-                    }
-                }
-                for (int k2 = 0; k2 < klausur_must_split_tree.size(); k2++) {
-                    if (all_klausuren.get(k).equals(klausur_must_split_tree.get(k2))) {
-                        klausuren_spliting_map.put(k, 3);
-                    }
+                else if(klausur_must_split_two.contains(all_klausuren.get(k))){
+                    klausuren_spliting_map.put(k, 2);
+                }else{
+                    klausuren_spliting_map.put(k, 1);
                 }
             }
             part_formulas = mkNoKlausurSplit(all_literals, all_klausuren, termin, raum, ctx, klausuren_spliting_map);
@@ -540,7 +554,7 @@ public class Main{
         for(String s : klausurenplan){
             Klausur planklausur = null;
             Termin plantermin = null;
-            Raum planraum = null;
+            List<Raum> planraum = new LinkedList<>();
             String[] temp = s.split("_");
             for(Klausur k : all_klausuren){
                 if(k.getName().equals(temp[0])){
@@ -556,12 +570,18 @@ public class Main{
             }
             for(Raum r : all_raeume){
                 if(r.getName().equals(temp[2])){
-                    planraum = r;
-                    break;
+                    planraum.add(r);
                 }
             }
-            if(planklausur != null){
-                planklausur.addTermin(plantermin, planraum);
+            if(planklausur != null && plantermin != null && planraum != null){
+                for(Raum r : planraum){
+                 if(planklausur.getTerminmap().get(plantermin) != null){
+                        planklausur.addRaum(plantermin, r);
+                 }else{
+                        planklausur.addTermin(plantermin);
+                        planklausur.addRaum(plantermin, r);
+                 }
+                }
             }
         }
         String[][] klausurplan = new String[all_klausuren.size()+1][all_termine.size()+1];
@@ -573,17 +593,18 @@ public class Main{
         }
 
         for(int k = 0; k < all_klausuren.size(); k++){
-            HashMap<Termin, Raum> temp = all_klausuren.get(k).getTerminmap();
+            HashMap<Termin, List<Raum>> temp = all_klausuren.get(k).getTerminmap();
             for(Termin t : temp.keySet()){
                 for(int t_2 = 0; t_2 < all_termine.size(); t_2++){
                     if(t.equals(all_termine.get(t_2))){
-                        klausurplan[k+1][t_2+1] = temp.get(t).getName();
-                        System.out.println(all_klausuren.get(k).getName() + " findet im Raum " + temp.get(t).getName() + " zum Termin " + t.getName() + " Statt.");
+                        for(Raum r : temp.get(t)){
+                            klausurplan[k+1][t_2+1] += r.getName() + " ";
+                            System.out.println(all_klausuren.get(k).getName() + " findet im Raum " + r.getName() + " zum Termin " + t.getName() + " Statt.");
+                        }
                     }
                 }
             }
         }
-        /*/****/
         try
         {
             FileWriter fw = new FileWriter("Plan.csv");
@@ -593,7 +614,7 @@ public class Main{
                     if(klausurplan[column][row] == null){
                         bw.write(",");
                     }else{
-                        bw.write(klausurplan[column][row] + ",");
+                        bw.write(klausurplan[column][row].replace("null", "") + ",");
                     }
                 }
                 bw.write("\n");
