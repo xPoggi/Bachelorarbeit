@@ -12,6 +12,7 @@ public class Klausur {
     private Date Datum;
     private int Teilnehmer;
     private HashMap<Termin, List<Raum>> terminmap = new HashMap<>();
+    private List<String> studiengang = new LinkedList<>();
 
     /**
      * Erstellt eine Klausur mit Namen und Dauer.
@@ -25,6 +26,10 @@ public class Klausur {
         this.Dauer = KlausurDauer;
         this.Teilnehmer = Teilnehmer;
         this.Datum = Datum;
+    }
+
+    public List<String> getStudiengang(){
+        return this.studiengang;
     }
 
     /**
@@ -82,5 +87,9 @@ public class Klausur {
 
     public void addRaum (Termin t, Raum r){
         terminmap.get(t).add(r);
+    }
+
+    public void addStudiengang(String s){
+        studiengang.add(s);
     }
 }

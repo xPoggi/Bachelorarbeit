@@ -1,5 +1,5 @@
-Klausurname,Klausurdauer,Teilnehmer, Datum, Start
-K1,120,101,04.07.17,12:00
-K2,120,170,19.07.17,08:15
-K3,60,15,01.07.17,10:00
-K4,120,10,04.07.17,12:00
+Klausurname,Klausurdauer,Teilnehmer, Datum, Start,Studiengang
+K1,120,101,04.07.17,12:00,gang1
+K2,120,170,19.07.17,08:15,gang2
+K3,60,15,01.07.17,10:00,gang3
+K4,120,10,04.07.17,12:00,

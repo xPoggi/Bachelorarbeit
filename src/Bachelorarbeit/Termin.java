@@ -9,7 +9,7 @@ import java.util.*;
  */
 public class Termin {
 
-    private Raum raum = null;
+    private List<Raum> raeume = new LinkedList<>();
     private String name;
 
 
@@ -17,18 +17,16 @@ public class Termin {
         this.name = n;
     }
 
-    public Termin(String n, Raum r){
-        this.name = n;
-        this.raum = r;
-    }
-
     public String getName(){
         return name;
     }
 
+    public List<Raum> getRaum() {
+        return raeume;
+    }
 
-    public Raum getRaum() {
-        return raum;
+    public void addRaum (Raum r){
+        raeume.add(r);
     }
 
     @Override
