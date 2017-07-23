@@ -95,6 +95,7 @@ public class Main{
         //List<Klausur> already_planted = new LinkedList<>();
         List<BoolExpr> klausur_is_written_once = new LinkedList<>();
         List<BoolExpr> implication_list = new LinkedList<>();
+        Set<String> klausur_studiengaenge = new TreeSet<>();
         BoolExpr[] temp_array;//Used to create arrays out of lists.
 
         for(int k = 0; k < all_klausuren.size(); k++) {
@@ -116,6 +117,17 @@ public class Main{
                                 for (int k_index = 0; k_index < all_klausuren.size(); k_index++) {
                                     if (k != k_index && k_2 != k_index) {
                                         implication_list.add(all_literals[k_index][t][r]);
+                                        klausur_studiengaenge.clear();
+                                        klausur_studiengaenge.addAll(all_klausuren.get(k).getStudiengang());
+                                        klausur_studiengaenge.addAll(all_klausuren.get(k_2).getStudiengang());
+                                        klausur_studiengaenge.retainAll(all_klausuren.get(k_index).getStudiengang());
+                                        if(!klausur_studiengaenge.isEmpty()){
+                                            for (int r_index = 0; r_index < all_raueme.size(); r_index++) {
+                                                if(r != r_index){
+                                                    implication_list.add(all_literals[k_index][t][r_index]);
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                                 temp_array = new BoolExpr[implication_list.size()];
@@ -142,6 +154,7 @@ public class Main{
         //List<Klausur> already_planted = new LinkedList<>();
         List<BoolExpr> klausur_is_written_once = new LinkedList<>();
         List<BoolExpr> implication_list = new LinkedList<>();
+        Set<String> klausur_studiengaenge = new TreeSet<>();
         BoolExpr[] temp_array;//Used to create arrays out of lists.
         //---------------Declaration end---------------------------
         for(int k = 0; k < all_klausuren.size(); k++) {
@@ -160,6 +173,16 @@ public class Main{
                             for (int k_index = 0; k_index < all_klausuren.size(); k_index++) {
                                 if (k != k_index) {
                                     implication_list.add(all_literals[k_index][t][r]);
+                                    klausur_studiengaenge.clear();
+                                    klausur_studiengaenge.addAll(all_klausuren.get(k).getStudiengang());
+                                    klausur_studiengaenge.retainAll(all_klausuren.get(k_index).getStudiengang());
+                                    if(!klausur_studiengaenge.isEmpty()){
+                                        for (int r_index = 0; r_index < all_raueme.size(); r_index++) {
+                                            if(r != r_index){
+                                                implication_list.add(all_literals[k_index][t][r_index]);
+                                            }
+                                        }
+                                    }
                                 }
                             }
                             temp_array = new BoolExpr[implication_list.size()];
@@ -183,6 +206,7 @@ public class Main{
         List<BoolExpr> ret = new LinkedList<>();
         List<BoolExpr> klausur_is_written_once = new LinkedList<>();
         List<BoolExpr> implication_list = new LinkedList<>();
+        Set<String> klausur_studiengaenge = new TreeSet<>();
         BoolExpr[] temp_array;//Used to create arrays out of lists.
         //---------------Declaration end---------------------------
         for (int k = 0; k < all_klausuren.size(); k++) {
@@ -205,6 +229,16 @@ public class Main{
                                         if (k != k_index) {
                                             implication_list.add(all_literals[k_index][t][r_2]);
                                             implication_list.add(all_literals[k_index][t][r_1]);
+                                            klausur_studiengaenge.clear();
+                                            klausur_studiengaenge.addAll(all_klausuren.get(k).getStudiengang());
+                                            klausur_studiengaenge.retainAll(all_klausuren.get(k_index).getStudiengang());
+                                            if(!klausur_studiengaenge.isEmpty()){
+                                                for (int r_index = 0; r_index < all_raeume.size(); r_index++) {
+                                                    if(r_1 != r_index && r_2 != r_index){
+                                                        implication_list.add(all_literals[k_index][t][r_index]);
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                     temp_array = new BoolExpr[implication_list.size()];
@@ -230,6 +264,7 @@ public class Main{
         List<BoolExpr> ret = new LinkedList<>();
         List<BoolExpr> klausur_is_written_once = new LinkedList<>();
         List<BoolExpr> implication_list = new LinkedList<>();
+        Set<String> klausur_studiengaenge = new TreeSet<>();
         BoolExpr[] temp_array;//Used to create arrays out of lists.
         //---------------Declaration end---------------------------
         for(int k = 0; k < all_klausur.size(); k++){
@@ -256,6 +291,16 @@ public class Main{
                                                     implication_list.add(all_literals[k_index][t][r_1]);
                                                     implication_list.add(all_literals[k_index][t][r_2]);
                                                     implication_list.add(all_literals[k_index][t][r_3]);
+                                                    klausur_studiengaenge.clear();
+                                                    klausur_studiengaenge.addAll(all_klausur.get(k).getStudiengang());
+                                                    klausur_studiengaenge.retainAll(all_klausur.get(k_index).getStudiengang());
+                                                    if(!klausur_studiengaenge.isEmpty()){
+                                                        for (int r_index = 0; r_index < all_raeume.size(); r_index++) {
+                                                            if(r_1 != r_index && r_2 != r_index && r_3 != r_index){
+                                                                implication_list.add(all_literals[k_index][t][r_index]);
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                             }
                                             temp_array = new BoolExpr[implication_list.size()];
@@ -288,17 +333,17 @@ public class Main{
         Random ran = new Random();
 
         for(Klausur k : all_klausuren){
-            if(k.getTeilnehmer() <= 5){
-                klausur_must_merg.add(k);
-            }else{
+//            if(k.getTeilnehmer() <= 5){
+//                klausur_must_merg.add(k);
+//            }else{
                 klausur_not_split.add(k);
-            }
+//            }
         }
-        int x = ran.nextInt(klausur_must_merg.size());
-        if(!(klausur_must_merg.size() % 2 == 0)){
-            klausur_not_split.add(klausur_must_merg.remove(x));
-        }
-        klausur_not_split.removeAll(klausur_must_merg);
+//        int x = ran.nextInt(klausur_must_merg.size());
+//        if(!(klausur_must_merg.size() % 2 == 0)){
+//            klausur_not_split.add(klausur_must_merg.remove(x));
+//        }
+//        klausur_not_split.removeAll(klausur_must_merg);
 
         for(int k = 0; k < all_klausuren.size(); k++){
             if(klausur_must_merg.contains(all_klausuren.get(k))){

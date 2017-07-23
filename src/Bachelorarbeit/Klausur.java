@@ -12,7 +12,7 @@ public class Klausur {
     private Date Datum;
     private int Teilnehmer;
     private HashMap<Termin, List<Raum>> terminmap = new HashMap<>();
-    private List<String> studiengang = new LinkedList<>();
+    private Set<String> studiengang = new TreeSet<>();
 
     /**
      * Erstellt eine Klausur mit Namen und Dauer.
@@ -28,7 +28,7 @@ public class Klausur {
         this.Datum = Datum;
     }
 
-    public List<String> getStudiengang(){
+    public Set<String> getStudiengang(){
         return this.studiengang;
     }
 
