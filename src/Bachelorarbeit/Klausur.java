@@ -13,6 +13,8 @@ public class Klausur {
     private int Teilnehmer;
     private HashMap<Termin, List<Raum>> terminmap = new HashMap<>();
     private Set<String> studiengang = new TreeSet<>();
+    private String wunsch_termin = "---";
+    private String muss_termin = "---";
 
     /**
      * Erstellt eine Klausur mit Namen und Dauer.
@@ -26,6 +28,22 @@ public class Klausur {
         this.Dauer = KlausurDauer;
         this.Teilnehmer = Teilnehmer;
         this.Datum = Datum;
+    }
+
+    public void setWunschTermin(String wunsch_termin) {
+        this.wunsch_termin = wunsch_termin;
+    }
+
+    public void setMussTermin(String muss_termin) {
+        this.muss_termin = muss_termin;
+    }
+
+    public String getWunschTermin() {
+        return wunsch_termin;
+    }
+
+    public String getMussTermin() {
+        return muss_termin;
     }
 
     public Set<String> getStudiengang(){

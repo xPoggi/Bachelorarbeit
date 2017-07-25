@@ -13,17 +13,18 @@ import java.util.*;
 
 public class Main{
     public static void main(String[] args) throws Z3Exception, IOException, TestFailedException, addFailExeption{
+        //Start des Programms speichern, um die Laufzeit zu berechnen.
         long start = new Date().getTime();
         //Read Data.
-        String testdata_nosplit = "C:\\Users\\Poggi\\IdeaProjects\\Bachelorarbeit\\test\\nosplit\\";
-        String testdata_twosplit = "C:\\Users\\Poggi\\IdeaProjects\\Bachelorarbeit\\test\\twosplit\\";
-        String testdata_treesplit = "C:\\Users\\Poggi\\IdeaProjects\\Bachelorarbeit\\test\\treesplit\\";
-        String testdata_two_treesplit = "C:\\Users\\Poggi\\IdeaProjects\\Bachelorarbeit\\test\\two_treesplit\\";
-        String datapath = testdata_two_treesplit;
+        String testdataNoSplit = "C:\\Users\\Poggi\\IdeaProjects\\Bachelorarbeit\\test\\nosplit\\";
+        String testdataTwoSplit = "C:\\Users\\Poggi\\IdeaProjects\\Bachelorarbeit\\test\\twosplit\\";
+        String testdataTreeSplit = "C:\\Users\\Poggi\\IdeaProjects\\Bachelorarbeit\\test\\treesplit\\";
+        String testDataTwoTreeSplit = "C:\\Users\\Poggi\\IdeaProjects\\Bachelorarbeit\\test\\two_treesplit\\";
+        String dataPath = testDataTwoTreeSplit;
 
-        List<Klausur> klausuren = readFilesKlausur(datapath + args[0]);
-        List<Raum> raume = readFilesRaume(datapath + args[2]);
-        List<Termin> termin = readFilesTermin(datapath + args[1], raume);
+        List<Klausur> klausuren = readFilesKlausur(dataPath + args[0]);
+        List<Raum> raeume = readFilesRaume(dataPath + args[2]);
+        List<Termin> termine = readFilesTermin(dataPath + args[1], raeume);
 
         //Z3 Context erstellen um SAT-Solver Nutzen zu können.
         HashMap<String, String> cfg = new HashMap<>();
@@ -32,64 +33,124 @@ public class Main{
         //Z3 Ausgabe umstellen.(nicht mehr SMT sondern einfache Variablen mit deren boolischen Werten)
         ctx.setPrintMode(Z3_ast_print_mode.Z3_PRINT_LOW_LEVEL);
 
-        System.out.println("Versuche " + klausuren.size() + " Klausuren, " + raume.size() + " Räume und " + termin.size() + " Termine zu planen!");
+        System.out.println("Versuche " + klausuren.size() + " Klausuren, " + raeume.size() + " Räume und " + termine.size() + " Termine zu planen!");
 
-        Model plan = KlausurPlanning(klausuren, termin, raume, ctx);
-        mkPlan(plan, klausuren, termin, raume);
+        //Einen möglichen Plan suchen.
+        Model plan = KlausurPlanning(klausuren, termine, raeume, ctx);
+        //Falls ein Plan existiert, diesen von Z3 zu einem Plan übersetzen.
+        mkPlan(plan, klausuren, termine, raeume);
+        //Die Laufzeit des Programmes berechnen.
         long runningTime = new Date().getTime() - start;
         System.out.println("Das Planen hat: " + (int)(runningTime/1000/60) + " Sekunden gedauert!");
     }
 
-    private static Model KlausurPlanning (List<Klausur> all_klausuren, List<Termin> all_termine, List<Raum> all_raueme, Context ctx)throws TestFailedException, Z3Exception{
+    private static Model KlausurPlanning (List<Klausur> allKlausur, List<Termin> allTermin, List<Raum> allRaeume, Context ctx)throws TestFailedException, Z3Exception{
         //---------------Declaration start-------------------------
-        BoolExpr[][][] all_literals = new BoolExpr[all_klausuren.size()][all_termine.size()][all_raueme.size()];
+        BoolExpr[][][] all_literals = new BoolExpr[allKlausur.size()][allTermin.size()][allRaeume.size()];
         Model retmodel;
         //---------------Declaration end---------------------------
 
         //---------------Creating or-literals----------------------
-        for(int k = 0; k < all_klausuren.size(); k++){
-            for(int t = 0; t < all_termine.size(); t++){
-                //-------------creating no split---------------------
-                for(int r = 0; r < all_raueme.size(); r++){
-                    all_literals[k][t][r] = ctx.mkBoolConst(all_klausuren.get(k).getName()+"_"+all_termine.get(t).getName()+"_"+all_raueme.get(r).getName());
+        for(int k = 0; k < allKlausur.size(); k++){
+            for(int t = 0; t < allTermin.size(); t++){
+                for(int r = 0; r < allRaeume.size(); r++){
+                    all_literals[k][t][r] = ctx.mkBoolConst(allKlausur.get(k).getName()+"_"+allTermin.get(t).getName()+"_"+allRaeume.get(r).getName());
                 }
             }
         }
         Raum r1 = null;
         Raum r2 = null;
-        Klausur temp = searchBiggestKlausur(all_klausuren);
-        for(Raum r : all_raueme){
+        Klausur temp = searchBiggestKlausur(allKlausur);
+        for(Raum r : allRaeume){
             if(r1 == null || r.getKapazitaet() > r1.getKapazitaet()){
                 r1 = r;
             }
         }
-        if(temp.getTeilnehmer() <= r1.getKapazitaet()){
-            retmodel = no_split(all_literals, all_klausuren, all_termine, all_raueme, ctx);
-            if(retmodel != null){
-                return retmodel;
+        //Eins weil mindestens einmal ausführen.
+        int wunschtermine = 1;
+        for(Klausur k : allKlausur){
+            if(!k.getWunschTermin().contains("---")){
+                wunschtermine += 1;
             }
-        }else{
-            for(Raum r : all_raueme){
-                if(( r2 == null || r.getKapazitaet() > r2.getKapazitaet() ) && r1 != r){
-                    r2 = r;
-                }
-            }
-            if(temp.getTeilnehmer() <= r1.getKapazitaet() + r2.getKapazitaet()){
-                retmodel = split_two_no_split(all_literals, all_klausuren, all_termine, all_raueme, ctx);
+        }
+        while(wunschtermine > -1){
+            if(temp.getTeilnehmer() <= r1.getKapazitaet()){
+                retmodel = no_split(all_literals, allKlausur, allTermin, allRaeume, ctx);
                 if(retmodel != null){
                     return retmodel;
                 }
             }else{
-                retmodel = split_two_split_tree_no_split(all_literals, all_klausuren, all_termine, all_raueme, ctx);
-                if(retmodel != null){
-                    return retmodel;
+                for(Raum r : allRaeume){
+                    if(( r2 == null || r.getKapazitaet() > r2.getKapazitaet() ) && r1 != r){
+                        r2 = r;
+                    }
+                }
+                if(temp.getTeilnehmer() <= r1.getKapazitaet() + r2.getKapazitaet()){
+                    retmodel = split_two_no_split(all_literals, allKlausur, allTermin, allRaeume, ctx);
+                    if(retmodel != null){
+                        return retmodel;
+                    }
+                }else{
+                    retmodel = split_two_split_tree_no_split(all_literals, allKlausur, allTermin, allRaeume, ctx);
+                    if(retmodel != null){
+                        return retmodel;
+                    }
                 }
             }
+            setWunschTermin(allKlausur);
+            wunschtermine -= 1;
         }
         throw new TestFailedException();
     }
 
-    private static List<BoolExpr> mkMerge(BoolExpr[][][] all_literals, List<Klausur> all_klausuren, List<Termin> all_termine, List<Raum> all_raueme, Context ctx, HashMap <Integer, Integer> klausuren_spliting_map)throws TestFailedException, Z3Exception{
+    private static List<BoolExpr> mkMussTermin(BoolExpr[][][] allLiterals, int mussKlausurIndex,List<Klausur> allKlausur, List<Termin> allTermin, List<Raum> allRaeume, Context ctx, HashMap <Integer, Integer> klausurenSplitingMap)throws TestFailedException, Z3Exception{
+        List<BoolExpr> ret = new LinkedList<>();
+        List<BoolExpr> implication_list = new LinkedList<>();
+        List<BoolExpr> klausur_is_written_once = new LinkedList<>();
+        BoolExpr[] tempArray;//Used to create arrays out of lists.
+        int mussTerminIndex = 0;
+        for(int t = 0; t < allTermin.size(); t++){
+            if(allTermin.get(t).getName().contains(allKlausur.get(mussKlausurIndex).getMussTermin()) || allTermin.get(t).getName().contains(allKlausur.get(mussKlausurIndex).getWunschTermin())){
+                mussTerminIndex = t;
+                break;
+            }
+        }
+        for(int r = 0; r < allRaeume.size(); r++){
+            if (allKlausur.get(mussKlausurIndex).getTeilnehmer() <= allRaeume.get(r).getKapazitaet() && !allTermin.get(mussTerminIndex).getRaum().contains(allRaeume.get(r))) {
+                klausur_is_written_once.add(allLiterals[mussKlausurIndex][mussTerminIndex][r]);
+                for (int t_index = 0; t_index < allTermin.size(); t_index++) {
+                    for (int r_index = 0; r_index < allRaeume.size(); r_index++) {
+                        if (mussTerminIndex != t_index || r != r_index) {
+                            implication_list.add(allLiterals[mussKlausurIndex][t_index][r_index]);
+                        }
+                    }
+                }
+                for (int kIndex = 0; kIndex < allKlausur.size(); kIndex++) {
+                    if (mussKlausurIndex != kIndex) {
+                        implication_list.add(allLiterals[kIndex][mussTerminIndex][r]);
+                        if(checkStudiengang(allKlausur.get(mussKlausurIndex), allKlausur.get(kIndex))){
+                            for (int rIndex = 0; rIndex < allRaeume.size(); rIndex++) {
+                                if(r != rIndex){
+                                    implication_list.add(allLiterals[kIndex][mussTerminIndex][rIndex]);
+                                }
+                            }
+                        }
+                    }
+                }
+                tempArray = new BoolExpr[implication_list.size()];
+                tempArray = implication_list.toArray(tempArray);
+                ret.add(ctx.mkImplies(allLiterals[mussKlausurIndex][mussTerminIndex][r], ctx.mkNot(ctx.mkOr(tempArray))));
+                implication_list.clear();
+            }
+        }
+        tempArray = new BoolExpr[klausur_is_written_once.size()];
+        tempArray = klausur_is_written_once.toArray(tempArray);
+        ret.add(ctx.mkOr(tempArray));
+        klausur_is_written_once.clear();
+        return ret;
+    }
+
+    private static List<BoolExpr> mkMerge(BoolExpr[][][] allLiterals, List<Klausur> allKlausur, List<Termin> allTermin, List<Raum> allRaeume, Context ctx, HashMap <Integer, Integer> klausurenSplitingMap)throws TestFailedException, Z3Exception{
         //---------------Declaration start-------------------------
         List<BoolExpr> ret = new LinkedList<>();
         //List<Klausur> already_planted = new LinkedList<>();
@@ -98,33 +159,33 @@ public class Main{
         Set<String> klausur_studiengaenge = new TreeSet<>();
         BoolExpr[] temp_array;//Used to create arrays out of lists.
 
-        for(int k = 0; k < all_klausuren.size(); k++) {
-            if (klausuren_spliting_map.get(k).intValue() == 4){
-                for (int t = 0; t < all_termine.size(); t++) {
-                    for (int r = 0; r < all_raueme.size(); r++) {
-                        for(int k_2 = 0; k_2 < all_klausuren.size(); k_2++){
-                            if( k_2 != k && all_klausuren.get(k).getTeilnehmer() + all_klausuren.get(k_2).getTeilnehmer() <= all_raueme.get(r).getKapazitaet() && !all_termine.get(t).getRaum().contains(all_raueme.get(r)) && !all_raueme.get(r).getNummer().contains("AM2")) {
-                                BoolExpr temp = ctx.mkAnd(all_literals[k][t][r], all_literals[k_2][t][r]);
+        for(int k = 0; k < allKlausur.size(); k++) {
+            if (klausurenSplitingMap.get(k).intValue() == 4){
+                for (int t = 0; t < allTermin.size(); t++) {
+                    for (int r = 0; r < allRaeume.size(); r++) {
+                        for(int k_2 = 0; k_2 < allKlausur.size(); k_2++){
+                            if( k_2 != k && allKlausur.get(k).getTeilnehmer() + allKlausur.get(k_2).getTeilnehmer() <= allRaeume.get(r).getKapazitaet() && !allTermin.get(t).getRaum().contains(allRaeume.get(r)) && !allRaeume.get(r).getNummer().contains("AM2")) {
+                                BoolExpr temp = ctx.mkAnd(allLiterals[k][t][r], allLiterals[k_2][t][r]);
                                 klausur_is_written_once.add(temp);
-                                for (int t_index = 0; t_index < all_termine.size(); t_index++) {
-                                    for (int r_index = 0; r_index < all_raueme.size(); r_index++) {
+                                for (int t_index = 0; t_index < allTermin.size(); t_index++) {
+                                    for (int r_index = 0; r_index < allRaeume.size(); r_index++) {
                                         if (t != t_index || r != r_index) {
-                                            implication_list.add(all_literals[k][t_index][r_index]);
-                                            implication_list.add(all_literals[k_2][t_index][r_index]);
+                                            implication_list.add(allLiterals[k][t_index][r_index]);
+                                            implication_list.add(allLiterals[k_2][t_index][r_index]);
                                         }
                                     }
                                 }
-                                for (int k_index = 0; k_index < all_klausuren.size(); k_index++) {
+                                for (int k_index = 0; k_index < allKlausur.size(); k_index++) {
                                     if (k != k_index && k_2 != k_index) {
-                                        implication_list.add(all_literals[k_index][t][r]);
+                                        implication_list.add(allLiterals[k_index][t][r]);
                                         klausur_studiengaenge.clear();
-                                        klausur_studiengaenge.addAll(all_klausuren.get(k).getStudiengang());
-                                        klausur_studiengaenge.addAll(all_klausuren.get(k_2).getStudiengang());
-                                        klausur_studiengaenge.retainAll(all_klausuren.get(k_index).getStudiengang());
+                                        klausur_studiengaenge.addAll(allKlausur.get(k).getStudiengang());
+                                        klausur_studiengaenge.addAll(allKlausur.get(k_2).getStudiengang());
+                                        klausur_studiengaenge.retainAll(allKlausur.get(k_index).getStudiengang());
                                         if(!klausur_studiengaenge.isEmpty()){
-                                            for (int r_index = 0; r_index < all_raueme.size(); r_index++) {
+                                            for (int r_index = 0; r_index < allRaeume.size(); r_index++) {
                                                 if(r != r_index){
-                                                    implication_list.add(all_literals[k_index][t][r_index]);
+                                                    implication_list.add(allLiterals[k_index][t][r_index]);
                                                 }
                                             }
                                         }
@@ -148,38 +209,43 @@ public class Main{
         return ret;
     }
 
-    private static List<BoolExpr> mkNoKlausurSplit (BoolExpr[][][] all_literals, List<Klausur> all_klausuren, List<Termin> all_termine, List<Raum> all_raueme, Context ctx, HashMap <Integer, Integer> klausuren_spliting_map)throws TestFailedException, Z3Exception{
+    private static List<BoolExpr> mkNoKlausurSplit (BoolExpr[][][] allLiterals, List<Klausur> allKlausur, List<Termin> allTermin, List<Raum> allRaeume, Context ctx, HashMap <Integer, Integer> klausurenSplitingMap)throws TestFailedException, Z3Exception{
         //---------------Declaration start-------------------------
         List<BoolExpr> ret = new LinkedList<>();
         //List<Klausur> already_planted = new LinkedList<>();
         List<BoolExpr> klausur_is_written_once = new LinkedList<>();
         List<BoolExpr> implication_list = new LinkedList<>();
-        Set<String> klausur_studiengaenge = new TreeSet<>();
+        List<BoolExpr> checkMussTermin = new LinkedList<>();
         BoolExpr[] temp_array;//Used to create arrays out of lists.
         //---------------Declaration end---------------------------
-        for(int k = 0; k < all_klausuren.size(); k++) {
-            if (klausuren_spliting_map.get(k).intValue() == 1){
-                for (int t = 0; t < all_termine.size(); t++) {
-                    for (int r = 0; r < all_raueme.size(); r++) {
-                        if (all_klausuren.get(k).getTeilnehmer() <= all_raueme.get(r).getKapazitaet() && !all_termine.get(t).getRaum().contains(all_raueme.get(r))) {
-                            klausur_is_written_once.add(all_literals[k][t][r]);
-                            for (int t_index = 0; t_index < all_termine.size(); t_index++) {
-                                for (int r_index = 0; r_index < all_raueme.size(); r_index++) {
+        for(int k = 0; k < allKlausur.size(); k++) {
+            if (klausurenSplitingMap.get(k).intValue() == 1){
+                if(!allKlausur.get(k).getMussTermin().contains("---") || !allKlausur.get(k).getWunschTermin().contains("---")){
+                    checkMussTermin = mkMussTermin(allLiterals, k, allKlausur, allTermin, allRaeume, ctx, klausurenSplitingMap);
+                    if(!checkMussTermin.isEmpty()){
+                        ret.addAll(checkMussTermin);
+                        checkMussTermin.clear();
+                        continue;
+                    }
+                }
+                for (int t = 0; t < allTermin.size(); t++) {
+                    for (int r = 0; r < allRaeume.size(); r++) {
+                        if (allKlausur.get(k).getTeilnehmer() <= allRaeume.get(r).getKapazitaet() && !allTermin.get(t).getRaum().contains(allRaeume.get(r))) {
+                            klausur_is_written_once.add(allLiterals[k][t][r]);
+                            for (int t_index = 0; t_index < allTermin.size(); t_index++) {
+                                for (int r_index = 0; r_index < allRaeume.size(); r_index++) {
                                     if (t != t_index || r != r_index) {
-                                        implication_list.add(all_literals[k][t_index][r_index]);
+                                        implication_list.add(allLiterals[k][t_index][r_index]);
                                     }
                                 }
                             }
-                            for (int k_index = 0; k_index < all_klausuren.size(); k_index++) {
+                            for (int k_index = 0; k_index < allKlausur.size(); k_index++) {
                                 if (k != k_index) {
-                                    implication_list.add(all_literals[k_index][t][r]);
-                                    klausur_studiengaenge.clear();
-                                    klausur_studiengaenge.addAll(all_klausuren.get(k).getStudiengang());
-                                    klausur_studiengaenge.retainAll(all_klausuren.get(k_index).getStudiengang());
-                                    if(!klausur_studiengaenge.isEmpty()){
-                                        for (int r_index = 0; r_index < all_raueme.size(); r_index++) {
+                                    implication_list.add(allLiterals[k_index][t][r]);
+                                    if(checkStudiengang(allKlausur.get(k), allKlausur.get(k_index))){
+                                        for (int r_index = 0; r_index < allRaeume.size(); r_index++) {
                                             if(r != r_index){
-                                                implication_list.add(all_literals[k_index][t][r_index]);
+                                                implication_list.add(allLiterals[k_index][t][r_index]);
                                             }
                                         }
                                     }
@@ -187,7 +253,7 @@ public class Main{
                             }
                             temp_array = new BoolExpr[implication_list.size()];
                             temp_array = implication_list.toArray(temp_array);
-                            ret.add(ctx.mkImplies(all_literals[k][t][r], ctx.mkNot(ctx.mkOr(temp_array))));
+                            ret.add(ctx.mkImplies(allLiterals[k][t][r], ctx.mkNot(ctx.mkOr(temp_array))));
                             implication_list.clear();
                         }
                     }
@@ -201,41 +267,37 @@ public class Main{
         return ret;
     }
 
-    private static List<BoolExpr> mkKlausurSplitTwoRooms (BoolExpr[][][] all_literals, List<Klausur> all_klausuren, List<Termin> all_termine, List<Raum> all_raeume, Context ctx, HashMap <Integer, Integer> klausuren_spliting_map)throws TestFailedException, Z3Exception {
+    private static List<BoolExpr> mkKlausurSplitTwoRooms (BoolExpr[][][] allLiterals, List<Klausur> allKlausur, List<Termin> allTermin, List<Raum> allRaeume, Context ctx, HashMap <Integer, Integer> klausurenSplitingMap)throws TestFailedException, Z3Exception {
         //---------------Declaration start-------------------------
         List<BoolExpr> ret = new LinkedList<>();
         List<BoolExpr> klausur_is_written_once = new LinkedList<>();
         List<BoolExpr> implication_list = new LinkedList<>();
-        Set<String> klausur_studiengaenge = new TreeSet<>();
         BoolExpr[] temp_array;//Used to create arrays out of lists.
         //---------------Declaration end---------------------------
-        for (int k = 0; k < all_klausuren.size(); k++) {
-            if (klausuren_spliting_map.get(k).intValue() == 2){
-                for (int t = 0; t < all_termine.size(); t++) {
-                    for (int r_1 = 0; r_1 < all_raeume.size(); r_1++) {
-                        if (all_klausuren.get(k).getTeilnehmer() >= all_raeume.get(r_1).getKapazitaet() && !all_termine.get(t).getRaum().contains(all_raeume.get(r_1))) {
-                            for (int r_2 = 0; r_2 < all_raeume.size(); r_2++) {
-                                if (r_1 != r_2 && all_klausuren.get(k).getTeilnehmer() <= all_raeume.get(r_1).getKapazitaet() + all_raeume.get(r_2).getKapazitaet() && !all_termine.get(t).getRaum().contains(all_raeume.get(r_2))) {
-                                    BoolExpr temp = ctx.mkAnd(all_literals[k][t][r_1], all_literals[k][t][r_2]);
+        for (int k = 0; k < allKlausur.size(); k++) {
+            if (klausurenSplitingMap.get(k).intValue() == 2){
+                for (int t = 0; t < allTermin.size(); t++) {
+                    for (int r_1 = 0; r_1 < allRaeume.size(); r_1++) {
+                        if (allKlausur.get(k).getTeilnehmer() >= allRaeume.get(r_1).getKapazitaet() && !allTermin.get(t).getRaum().contains(allRaeume.get(r_1))) {
+                            for (int r_2 = 0; r_2 < allRaeume.size(); r_2++) {
+                                if (r_1 != r_2 && allKlausur.get(k).getTeilnehmer() <= allRaeume.get(r_1).getKapazitaet() + allRaeume.get(r_2).getKapazitaet() && !allTermin.get(t).getRaum().contains(allRaeume.get(r_2))) {
+                                    BoolExpr temp = ctx.mkAnd(allLiterals[k][t][r_1], allLiterals[k][t][r_2]);
                                     klausur_is_written_once.add(temp);
-                                    for (int t_index = 0; t_index < all_termine.size(); t_index++) {
-                                        for (int r_index = 0; r_index < all_raeume.size(); r_index++) {
+                                    for (int t_index = 0; t_index < allTermin.size(); t_index++) {
+                                        for (int r_index = 0; r_index < allRaeume.size(); r_index++) {
                                             if (t != t_index || (r_1 != r_index && r_2 != r_index)) {
-                                                implication_list.add(all_literals[k][t_index][r_index]);
+                                                implication_list.add(allLiterals[k][t_index][r_index]);
                                             }
                                         }
                                     }
-                                    for (int k_index = 0; k_index < all_klausuren.size(); k_index++) {
+                                    for (int k_index = 0; k_index < allKlausur.size(); k_index++) {
                                         if (k != k_index) {
-                                            implication_list.add(all_literals[k_index][t][r_2]);
-                                            implication_list.add(all_literals[k_index][t][r_1]);
-                                            klausur_studiengaenge.clear();
-                                            klausur_studiengaenge.addAll(all_klausuren.get(k).getStudiengang());
-                                            klausur_studiengaenge.retainAll(all_klausuren.get(k_index).getStudiengang());
-                                            if(!klausur_studiengaenge.isEmpty()){
-                                                for (int r_index = 0; r_index < all_raeume.size(); r_index++) {
+                                            implication_list.add(allLiterals[k_index][t][r_2]);
+                                            implication_list.add(allLiterals[k_index][t][r_1]);
+                                            if(checkStudiengang(allKlausur.get(k), allKlausur.get(k_index))){
+                                                for (int r_index = 0; r_index < allRaeume.size(); r_index++) {
                                                     if(r_1 != r_index && r_2 != r_index){
-                                                        implication_list.add(all_literals[k_index][t][r_index]);
+                                                        implication_list.add(allLiterals[k_index][t][r_index]);
                                                     }
                                                 }
                                             }
@@ -259,45 +321,41 @@ public class Main{
         return ret;
     }
 
-    private static List<BoolExpr> mkKlausurSplitTreeRooms (BoolExpr[][][] all_literals, List<Klausur> all_klausur, List<Termin> all_termine, List<Raum> all_raeume, Context ctx, HashMap <Integer, Integer> klausuren_spliting_map)throws TestFailedException, Z3Exception{
+    private static List<BoolExpr> mkKlausurSplitTreeRooms (BoolExpr[][][] allLiterals, List<Klausur> allKlausur, List<Termin> allTermine, List<Raum> allRaeume, Context ctx, HashMap <Integer, Integer> klausurenSplitingMap)throws TestFailedException, Z3Exception{
         //---------------Declaration start-------------------------
         List<BoolExpr> ret = new LinkedList<>();
         List<BoolExpr> klausur_is_written_once = new LinkedList<>();
         List<BoolExpr> implication_list = new LinkedList<>();
-        Set<String> klausur_studiengaenge = new TreeSet<>();
         BoolExpr[] temp_array;//Used to create arrays out of lists.
         //---------------Declaration end---------------------------
-        for(int k = 0; k < all_klausur.size(); k++){
-            if (klausuren_spliting_map.get(k).intValue() == 3){
-                for (int t = 0; t < all_termine.size(); t++) {
-                    for (int r_1 = 0; r_1 < all_raeume.size(); r_1++) {
-                        if (all_klausur.get(k).getTeilnehmer() >= all_raeume.get(r_1).getKapazitaet() && !all_termine.get(t).getRaum().contains(all_raeume.get(r_1))) {
-                            for (int r_2 = 0; r_2 < all_raeume.size(); r_2++) {
-                                if (r_1 != r_2 && all_klausur.get(k).getTeilnehmer() >= all_raeume.get(r_1).getKapazitaet() + all_raeume.get(r_2).getKapazitaet() && !all_termine.get(t).getRaum().contains(all_raeume.get(r_2))) {
-                                    for (int r_3 = 0; r_3 < all_raeume.size(); r_3++) {
-                                        if (r_1 != r_2 && r_2 != r_3 && r_1 != r_3 && all_klausur.get(k).getTeilnehmer() <= all_raeume.get(r_1).getKapazitaet() + all_raeume.get(r_2).getKapazitaet() + all_raeume.get(r_3).getKapazitaet()
-                                                && !all_termine.get(t).getRaum().contains(all_raeume.get(r_3))) {
-                                            BoolExpr temp = ctx.mkAnd(all_literals[k][t][r_1], all_literals[k][t][r_2], all_literals[k][t][r_3]);
+        for(int k = 0; k < allKlausur.size(); k++){
+            if (klausurenSplitingMap.get(k).intValue() == 3){
+                for (int t = 0; t < allTermine.size(); t++) {
+                    for (int r_1 = 0; r_1 < allRaeume.size(); r_1++) {
+                        if (allKlausur.get(k).getTeilnehmer() >= allRaeume.get(r_1).getKapazitaet() && !allTermine.get(t).getRaum().contains(allRaeume.get(r_1))) {
+                            for (int r_2 = 0; r_2 < allRaeume.size(); r_2++) {
+                                if (r_1 != r_2 && allKlausur.get(k).getTeilnehmer() >= allRaeume.get(r_1).getKapazitaet() + allRaeume.get(r_2).getKapazitaet() && !allTermine.get(t).getRaum().contains(allRaeume.get(r_2))) {
+                                    for (int r_3 = 0; r_3 < allRaeume.size(); r_3++) {
+                                        if (r_1 != r_2 && r_2 != r_3 && r_1 != r_3 && allKlausur.get(k).getTeilnehmer() <= allRaeume.get(r_1).getKapazitaet() + allRaeume.get(r_2).getKapazitaet() + allRaeume.get(r_3).getKapazitaet()
+                                                && !allTermine.get(t).getRaum().contains(allRaeume.get(r_3))) {
+                                            BoolExpr temp = ctx.mkAnd(allLiterals[k][t][r_1], allLiterals[k][t][r_2], allLiterals[k][t][r_3]);
                                             klausur_is_written_once.add(temp);
-                                            for (int t_index = 0; t_index < all_termine.size(); t_index++) {
-                                                for (int r_index = 0; r_index < all_raeume.size(); r_index++) {
+                                            for (int t_index = 0; t_index < allTermine.size(); t_index++) {
+                                                for (int r_index = 0; r_index < allRaeume.size(); r_index++) {
                                                     if (t != t_index || (r_1 != r_index && r_2 != r_index && r_3 != r_index)) {
-                                                        implication_list.add(all_literals[k][t_index][r_index]);
+                                                        implication_list.add(allLiterals[k][t_index][r_index]);
                                                     }
                                                 }
                                             }
-                                            for (int k_index = 0; k_index < all_klausur.size(); k_index++) {
+                                            for (int k_index = 0; k_index < allKlausur.size(); k_index++) {
                                                 if (k != k_index) {
-                                                    implication_list.add(all_literals[k_index][t][r_1]);
-                                                    implication_list.add(all_literals[k_index][t][r_2]);
-                                                    implication_list.add(all_literals[k_index][t][r_3]);
-                                                    klausur_studiengaenge.clear();
-                                                    klausur_studiengaenge.addAll(all_klausur.get(k).getStudiengang());
-                                                    klausur_studiengaenge.retainAll(all_klausur.get(k_index).getStudiengang());
-                                                    if(!klausur_studiengaenge.isEmpty()){
-                                                        for (int r_index = 0; r_index < all_raeume.size(); r_index++) {
+                                                    implication_list.add(allLiterals[k_index][t][r_1]);
+                                                    implication_list.add(allLiterals[k_index][t][r_2]);
+                                                    implication_list.add(allLiterals[k_index][t][r_3]);
+                                                    if(checkStudiengang(allKlausur.get(k), allKlausur.get(k_index))){
+                                                        for (int r_index = 0; r_index < allRaeume.size(); r_index++) {
                                                             if(r_1 != r_index && r_2 != r_index && r_3 != r_index){
-                                                                implication_list.add(all_literals[k_index][t][r_index]);
+                                                                implication_list.add(allLiterals[k_index][t][r_index]);
                                                             }
                                                         }
                                                     }
@@ -323,39 +381,38 @@ public class Main{
         return ret;
     }
 
-    private static Model no_split(BoolExpr[][][] all_literals, List<Klausur> all_klausuren, List<Termin> termin, List<Raum> raum, Context ctx)throws TestFailedException, Z3Exception{
+    private static Model no_split(BoolExpr[][][] allLiterals, List<Klausur> allKlausuren, List<Termin> allTermin, List<Raum> allRaum, Context ctx)throws TestFailedException, Z3Exception{
         List<BoolExpr> formulas = new LinkedList<>();
         List<BoolExpr> part_formulas;
         List<Klausur> klausur_not_split = new LinkedList<>();
         List<Klausur> klausur_must_merg = new LinkedList<>();
         Solver s = ctx.mkSolver();
         HashMap <Integer, Integer> klausuren_spliting_map = new HashMap<>();
-        Random ran = new Random();
 
-        for(Klausur k : all_klausuren){
-//            if(k.getTeilnehmer() <= 5){
-//                klausur_must_merg.add(k);
-//            }else{
-                klausur_not_split.add(k);
-//            }
-        }
-//        int x = ran.nextInt(klausur_must_merg.size());
-//        if(!(klausur_must_merg.size() % 2 == 0)){
-//            klausur_not_split.add(klausur_must_merg.remove(x));
-//        }
-//        klausur_not_split.removeAll(klausur_must_merg);
-
-        for(int k = 0; k < all_klausuren.size(); k++){
-            if(klausur_must_merg.contains(all_klausuren.get(k))){
-                klausuren_spliting_map.put(k, 4);
+        for(Klausur k : allKlausuren){
+            if(k.getTeilnehmer() <= 5){
+                klausur_must_merg.add(k);
             }else{
+                klausur_not_split.add(k);
+            }
+        }
+        if(klausur_must_merg.size() % 2 != 0){
+            Klausur biggestKlausur = searchBiggestKlausur(klausur_must_merg);
+            klausur_not_split.add(biggestKlausur);
+        }
+        klausur_not_split.removeAll(klausur_must_merg);
+
+        for(int k = 0; k < allKlausuren.size(); k++){
+            if(klausur_must_merg.contains(allKlausuren.get(k))){
+                klausuren_spliting_map.put(k, 4);
+            }else if(klausur_not_split.contains(allKlausuren.get(k))){
                 klausuren_spliting_map.put(k, 1);
             }
         }
 
-        part_formulas = mkMerge(all_literals, all_klausuren, termin, raum, ctx, klausuren_spliting_map);
+        part_formulas = mkMerge(allLiterals, allKlausuren, allTermin, allRaum, ctx, klausuren_spliting_map);
         formulas.addAll(part_formulas);
-        part_formulas = mkNoKlausurSplit(all_literals, all_klausuren, termin, raum, ctx, klausuren_spliting_map);
+        part_formulas = mkNoKlausurSplit(allLiterals, allKlausuren, allTermin, allRaum, ctx, klausuren_spliting_map);
         formulas.addAll(part_formulas);
         for(BoolExpr b : formulas){
             s.add(b);
@@ -368,11 +425,11 @@ public class Main{
         return null;
     }
 
-    private static Model split_two_no_split(BoolExpr[][][] all_literals, List<Klausur> all_klausuren, List<Termin> termin, List<Raum> raum, Context ctx)throws TestFailedException, Z3Exception{
+    private static Model split_two_no_split(BoolExpr[][][] allLiterals, List<Klausur> allKlausuren, List<Termin> allTermin, List<Raum> allRaeume, Context ctx)throws TestFailedException, Z3Exception{
         List<BoolExpr> formulas = new LinkedList<>();
         List<BoolExpr> part_formulas = new LinkedList<>();
         List<Klausur> klausur_not_split = new LinkedList<>();
-        klausur_not_split.addAll(all_klausuren);
+        klausur_not_split.addAll(allKlausuren);
         List<Klausur> klausur_must_split_two = new LinkedList<>();
         List<Klausur> klausur_must_merg = new LinkedList<>();
         Solver s = ctx.mkSolver();
@@ -405,20 +462,20 @@ public class Main{
             biggestKlausur = searchBiggestKlausur(klausur_not_split);
             klausur_must_split_two.add(biggestKlausur);
             klausur_not_split.remove(biggestKlausur);
-            for(int k = 0; k < all_klausuren.size(); k++){
-                if(klausur_must_split_two.contains(all_klausuren.get(k))){
+            for(int k = 0; k < allKlausuren.size(); k++){
+                if(klausur_must_split_two.contains(allKlausuren.get(k))){
                     klausuren_spliting_map.put(k, 2);
-                }else if(klausur_not_split.contains(all_klausuren.get(k))){
+                }else if(klausur_not_split.contains(allKlausuren.get(k))){
                     klausuren_spliting_map.put(k, 1);
                 }else{
                     klausuren_spliting_map.put(k, 4);
                 }
             }
-            part_formulas = mkMerge(all_literals, all_klausuren, termin, raum, ctx, klausuren_spliting_map);
+            part_formulas = mkMerge(allLiterals, allKlausuren, allTermin, allRaeume, ctx, klausuren_spliting_map);
             formulas.addAll(part_formulas);
-            part_formulas = mkNoKlausurSplit(all_literals, all_klausuren, termin, raum, ctx, klausuren_spliting_map);
+            part_formulas = mkNoKlausurSplit(allLiterals, allKlausuren, allTermin, allRaeume, ctx, klausuren_spliting_map);
             formulas.addAll(part_formulas);
-            part_formulas = mkKlausurSplitTwoRooms(all_literals, all_klausuren, termin, raum, ctx, klausuren_spliting_map);
+            part_formulas = mkKlausurSplitTwoRooms(allLiterals, allKlausuren, allTermin, allRaeume, ctx, klausuren_spliting_map);
             formulas.addAll(part_formulas);
             s.reset();
             for(BoolExpr b : formulas){
@@ -434,7 +491,7 @@ public class Main{
         return null;
     }
 
-    private static Model split_two_split_tree_no_split(BoolExpr[][][] all_literals, List<Klausur> all_klausuren, List<Termin> termin, List<Raum> raum, Context ctx)throws TestFailedException, Z3Exception{
+    private static Model split_two_split_tree_no_split(BoolExpr[][][] allLiterals, List<Klausur> allKlausuren, List<Termin> allTermine, List<Raum> allRaeume, Context ctx)throws TestFailedException, Z3Exception{
         List<BoolExpr> formulas = new LinkedList<>();
         List<BoolExpr> part_formulas = new LinkedList<>();
         List<Klausur> klausur_must_merg = new LinkedList<>();
@@ -447,7 +504,7 @@ public class Main{
         Klausur biggestKlausur;
         Random ran = new Random();
 
-        for(Klausur k : all_klausuren){
+        for(Klausur k : allKlausuren){
             if(k.getTeilnehmer() <= 5){
                 klausur_must_merg.add(k);
             }else if(k.getTeilnehmer() <= 25){
@@ -478,24 +535,24 @@ public class Main{
                 klausur_must_split_tree.add(biggestKlausur);
                 klausur_must_split_two.remove(biggestKlausur);
             }
-            for (int k = 0; k < all_klausuren.size(); k++) {
-                if(klausur_must_split_tree.contains(all_klausuren.get(k))){
+            for (int k = 0; k < allKlausuren.size(); k++) {
+                if(klausur_must_split_tree.contains(allKlausuren.get(k))){
                     klausuren_spliting_map.put(k, 3);
-                }else if(klausur_must_split_two.contains(all_klausuren.get(k))){
+                }else if(klausur_must_split_two.contains(allKlausuren.get(k))){
                     klausuren_spliting_map.put(k, 2);
-                }else if(klausur_must_no_split.contains(all_klausuren.get(k))){
+                }else if(klausur_must_no_split.contains(allKlausuren.get(k))){
                     klausuren_spliting_map.put(k, 1);
                 }else{
                     klausuren_spliting_map.put(k, 4);
                 }
             }
-            part_formulas = mkMerge(all_literals, all_klausuren, termin, raum, ctx, klausuren_spliting_map);
+            part_formulas = mkMerge(allLiterals, allKlausuren, allTermine, allRaeume, ctx, klausuren_spliting_map);
             formulas.addAll(part_formulas);
-            part_formulas = mkNoKlausurSplit(all_literals, all_klausuren, termin, raum, ctx, klausuren_spliting_map);
+            part_formulas = mkNoKlausurSplit(allLiterals, allKlausuren, allTermine, allRaeume, ctx, klausuren_spliting_map);
             formulas.addAll(part_formulas);
-            part_formulas = mkKlausurSplitTwoRooms(all_literals, all_klausuren, termin, raum, ctx, klausuren_spliting_map);
+            part_formulas = mkKlausurSplitTwoRooms(allLiterals, allKlausuren, allTermine, allRaeume, ctx, klausuren_spliting_map);
             formulas.addAll(part_formulas);
-            part_formulas = mkKlausurSplitTreeRooms(all_literals, all_klausuren, termin, raum, ctx, klausuren_spliting_map);
+            part_formulas = mkKlausurSplitTreeRooms(allLiterals, allKlausuren, allTermine, allRaeume, ctx, klausuren_spliting_map);
             formulas.addAll(part_formulas);
             s.reset();
             for(BoolExpr b : formulas){
@@ -504,7 +561,7 @@ public class Main{
             if (s.check() != Status.UNSATISFIABLE) {
                 System.out.println("GESCHAFFT!");
                 return s.getModel();
-            }else if(klausur_must_no_split.size() + klausur_must_split_two.size() + klausur_must_split_tree.size() == all_klausuren.size()){
+            }else if(klausur_must_no_split.size() + klausur_must_split_two.size() + klausur_must_split_tree.size() == allKlausuren.size()){
                 end = true;
             }
         }
@@ -530,6 +587,14 @@ public class Main{
             if(line.length >= 6){
                 studiengang = line[5].split(" ");
             }
+            String wunsch_termin = null;
+            if(line.length >= 7){
+                wunsch_termin = line[6];
+            }
+            String muss_termin = null;
+            if(line.length >= 8){
+                muss_termin = line[7];
+            }
             Date date = new Date(Integer.parseInt(datum[2]),Integer.parseInt(datum[1]),Integer.parseInt(datum[0]),
                    Integer.parseInt(zeit[0]),Integer.parseInt(zeit[1]));
             Klausur klausur = new Klausur(name,dauer,teilnehmer,date);
@@ -537,6 +602,12 @@ public class Main{
                 for(String s : studiengang){
                     klausur.addStudiengang(s);
                 }
+            }
+            if(wunsch_termin != null && !wunsch_termin.equals("")){
+                klausur.setWunschTermin(wunsch_termin);
+            }
+            if(muss_termin != null){
+                klausur.setMussTermin(muss_termin);
             }
             ret.add(klausur);
             temp = r.readLine();
@@ -563,7 +634,7 @@ public class Main{
         return ret;
     }
 
-    private static List<Termin> readFilesTermin(String file, List<Raum> raum) throws IOException{
+    private static List<Termin> readFilesTermin(String file, List<Raum> raeume) throws IOException{
         List<Termin> ret = new LinkedList<>();
         FileReader f = new FileReader(file);
         BufferedReader r = new BufferedReader(f);
@@ -579,7 +650,7 @@ public class Main{
             }
             Termin termin = new Termin(name);
             if(raumname != null){
-                for (Raum ra : raum){
+                for (Raum ra : raeume){
                     for(int r_index = 0; r_index < raumname.length; r_index++){
                         if(ra.getName().contains(raumname[r_index])){
                             termin.addRaum(ra);
@@ -593,9 +664,9 @@ public class Main{
         return ret;
     }
 
-    private static Klausur searchBiggestKlausur(List<Klausur> klausur){
+    private static Klausur searchBiggestKlausur(List<Klausur> allKlausuren){
         Klausur ret = null;
-        for(Klausur k : klausur){
+        for(Klausur k : allKlausuren){
             if(ret != null){
                 if(ret.getTeilnehmer() < k.getTeilnehmer()){
                     ret = k;
@@ -607,7 +678,37 @@ public class Main{
         return ret;
     }
 
-    private static void mkPlan(Model model, List<Klausur> all_klausuren, List<Termin> all_termine, List<Raum> all_raeume){
+    private static Boolean checkStudiengang(Klausur k1, Klausur k2){
+        Set<String> check = new TreeSet<>();
+        check.addAll(k1.getStudiengang());
+        check.retainAll(k2.getStudiengang());
+        if(!check.isEmpty()){
+            return true;
+        }else{
+            return false;
+        }
+    }
+
+    private static Boolean checkWunschTermin(List<Klausur> allKlausuren){
+        for(Klausur k : allKlausuren){
+            if(!k.getWunschTermin().contains("---")){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void setWunschTermin(List<Klausur> allKlausuren){
+        for(Klausur k : allKlausuren){
+            if(!k.getWunschTermin().contains("---")){
+                k.setWunschTermin("---");
+                System.err.println("Wunschtermin wurde entfernt.");
+                break;
+            }
+        }
+    }
+
+    private static void mkPlan(Model model, List<Klausur> allKlausur, List<Termin> all_termine, List<Raum> all_raeume){
         String plan = "";
         String [] klausurenplan;
         for(String s : model.toString().split("\n")){
@@ -622,7 +723,7 @@ public class Main{
             Termin plantermin = null;
             List<Raum> planraum = new LinkedList<>();
             String[] temp = s.split("_");
-            for(Klausur k : all_klausuren){
+            for(Klausur k : allKlausur){
                 if(k.getName().equals(temp[0])){
                     planklausur = k;
                     break;
@@ -650,22 +751,22 @@ public class Main{
                 }
             }
         }
-        String[][] klausurplan = new String[all_klausuren.size()+1][all_termine.size()+1];
-        for(int k = 0; k < all_klausuren.size(); k++){
-            klausurplan[k+1][0] = all_klausuren.get(k).getName();
+        String[][] klausurplan = new String[allKlausur.size()+1][all_termine.size()+1];
+        for(int k = 0; k < allKlausur.size(); k++){
+            klausurplan[k+1][0] = allKlausur.get(k).getName();
         }
         for(int t = 0; t < all_termine.size(); t++){
             klausurplan[0][t+1] = all_termine.get(t).getName();
         }
 
-        for(int k = 0; k < all_klausuren.size(); k++){
-            HashMap<Termin, List<Raum>> temp = all_klausuren.get(k).getTerminmap();
+        for(int k = 0; k < allKlausur.size(); k++){
+            HashMap<Termin, List<Raum>> temp = allKlausur.get(k).getTerminmap();
             for(Termin t : temp.keySet()){
                 for(int t_2 = 0; t_2 < all_termine.size(); t_2++){
                     if(t.equals(all_termine.get(t_2))){
                         for(Raum r : temp.get(t)){
                             klausurplan[k+1][t_2+1] += r.getName() + " ";
-                            System.out.println(all_klausuren.get(k).getName() + " findet im Raum " + r.getName() + " zum Termin " + t.getName() + " Statt.");
+                            System.out.println(allKlausur.get(k).getName() + " findet im Raum " + r.getName() + " zum Termin " + t.getName() + " Statt.");
                         }
                     }
                 }
