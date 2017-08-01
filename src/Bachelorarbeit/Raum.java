@@ -1,9 +1,8 @@
 package Bachelorarbeit;
 
-import java.util.*;
-
 /**
  * Created by Poggi on 21.04.2017.
+ * Planning-program for FH-Luebeck
  */
 public class Raum {
 
@@ -21,8 +20,6 @@ public class Raum {
         this.nummer = RaumNummer;
         this.Kapazitaet = Kapazitaet;
     }
-
-
 
     /**
      * Gibt den Namen des Raumes zurück. (Stirng)

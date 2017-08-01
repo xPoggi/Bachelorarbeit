@@ -4,17 +4,20 @@ import java.util.*;
 
 /**
  * Created by Poggi on 21.04.2017.
+ * Planning-program for FH-Luebeck
  */
 public class Klausur {
 
+    private String klausurnummer;
     private String Name; //Name der Klausur
     private int Dauer; //Dauer der Klausur
     private Date Datum;
     private int Teilnehmer;
     private HashMap<Termin, List<Raum>> terminmap = new HashMap<>();
     private Set<String> studiengang = new TreeSet<>();
-    private String wunsch_termin = "---";
-    private String muss_termin = "---";
+    private List<String> SBnummer = new LinkedList<>();
+    private List<String> wunschTermin = new LinkedList<>();
+    private List<String> mussTermin = new LinkedList<>();
 
     /**
      * Erstellt eine Klausur mit Namen und Dauer.
@@ -23,27 +26,40 @@ public class Klausur {
      * @param Datum Datum der Klausur
      * @param Teilnehmer Teilnehmeranzahl der Klausur
      */
-    public Klausur(String KlausurName, int KlausurDauer, int Teilnehmer, Date Datum){
+    public Klausur(String klausurnummer, String KlausurName, int KlausurDauer, int Teilnehmer, Date Datum){
+        this.klausurnummer = klausurnummer;
         this.Name = KlausurName;
         this.Dauer = KlausurDauer;
         this.Teilnehmer = Teilnehmer;
         this.Datum = Datum;
     }
 
-    public void setWunschTermin(String wunsch_termin) {
-        this.wunsch_termin = wunsch_termin;
+    public String getKlausurnummer(){
+        return this.klausurnummer;
     }
 
-    public void setMussTermin(String muss_termin) {
-        this.muss_termin = muss_termin;
+    public List<String> getSBnummer(){
+        return this.SBnummer;
     }
 
-    public String getWunschTermin() {
-        return wunsch_termin;
+    public void addSBnummer (String SBnummer){
+        this.SBnummer.add(SBnummer);
     }
 
-    public String getMussTermin() {
-        return muss_termin;
+    public void addWunschTermin(String wunsch_termin) {
+        this.wunschTermin.add(wunsch_termin);
+    }
+
+    public void addMussTermin(String muss_termin) {
+        this.mussTermin.add(muss_termin);
+    }
+
+    public List<String> getWunschTermin() {
+        return wunschTermin;
+    }
+
+    public List<String> getMussTermin() {
+        return mussTermin;
     }
 
     public Set<String> getStudiengang(){

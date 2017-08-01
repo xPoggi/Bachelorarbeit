@@ -1,5 +1,5 @@
-Klausurname,Klausurdauer,Teilnehmer, Datum, Start,Studiengang,Wunschtermin,Musstermin
-K1,120,87,04.07.17,12:00,,,T4
-K2,120,87,19.07.17,08:15,,T4,
-K3,60,15,01.07.17,10:00,,T3,
-K4,120,10,04.07.17,12:00,,T3,
+Klausurname,Klausurdauer,Teilnehmer, Datum, Start,Studiengang,Wunschtermin,Musstermin,SB-Nummer
+Mathe1,120,210,04.07.17,12:00,gang1,,T4,SB1111 EKS3927
+Prog.1,120,54,19.07.17,08:15,gang2,T1,,EKS3214
+Physik,60,15,01.07.17,10:00,gang3,T2 T4,,
+Koop,120,10,04.07.17,12:00,gang4,T3,,
