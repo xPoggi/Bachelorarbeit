@@ -13,6 +13,7 @@ public class Klausur {
     private int Dauer; //Dauer der Klausur
     private Date Datum;
     private int Teilnehmer;
+    private boolean merg;
     private HashMap<Termin, List<Raum>> terminmap = new HashMap<>();
     private Set<String> studiengang = new TreeSet<>();
     private List<String> SBnummer = new LinkedList<>();
@@ -26,16 +27,27 @@ public class Klausur {
      * @param Datum Datum der Klausur
      * @param Teilnehmer Teilnehmeranzahl der Klausur
      */
-    public Klausur(String klausurnummer, String KlausurName, int KlausurDauer, int Teilnehmer, Date Datum){
-        this.klausurnummer = klausurnummer;
+    public Klausur(String KlausurName, int KlausurDauer, int Teilnehmer, Date Datum){
         this.Name = KlausurName;
         this.Dauer = KlausurDauer;
         this.Teilnehmer = Teilnehmer;
         this.Datum = Datum;
     }
 
+    public void setMerg(boolean merg){
+        this.merg = merg;
+    }
+
+    public boolean getMerg(){
+        return this.merg;
+    }
+
     public String getKlausurnummer(){
         return this.klausurnummer;
+    }
+
+    public void setKlausurnummer(String klausurnummer){
+        this.klausurnummer = klausurnummer;
     }
 
     public List<String> getSBnummer(){

@@ -48,13 +48,41 @@ public class Main{
         //---------------Declaration start-------------------------
         BoolExpr[][][] all_literals = new BoolExpr[allKlausur.size()][allTermin.size()][allRaeume.size()];
         Model retmodel;
+        LinkedList<Klausur> allKlausurCopy = new LinkedList<>();
+                            allKlausurCopy.addAll(allKlausur);
+        LinkedList<Klausur> allKlausurMerg = new LinkedList<>();
         //---------------Declaration end---------------------------
 
+        for(Klausur k1 : allKlausur){
+            for(Klausur k2 : allKlausur){
+                if(k1.getTeilnehmer() <= 5 && k2.getTeilnehmer() <= 5 &&
+                   !checkStudiengang(k1, k2) && k1 != k2 && k1.getMerg() && k2.getMerg() &&
+                   !allKlausurMerg.contains(k1) && !allKlausurMerg.contains(k2)){
+                    allKlausurMerg.add(k1);
+                    allKlausurMerg.add(k2);
+                    break;
+                }
+            }
+        }
+        if(allKlausurMerg.size() % 2 != 0) {
+            Klausur temp = searchBiggestKlausur(allKlausurMerg);
+            allKlausurMerg.remove(temp);
+            allKlausurCopy.add(temp);
+        }
+        allKlausurCopy.removeAll(allKlausurMerg);
+        for(Klausur k1 : allKlausurMerg){
+            for(Klausur k2 : allKlausurMerg){
+                if(k1 != k2){
+                    allKlausurCopy.add(new Klausur(k1.getName()+"_"+k2.getName(),k1.getDauer(),k1.getTeilnehmer()+k2.getTeilnehmer(),null));
+                }
+            }
+        }
         //---------------Creating or-literals----------------------
-        for(int k = 0; k < allKlausur.size(); k++){
+        for(int k = 0; k < allKlausurCopy.size(); k++){
             for(int t = 0; t < allTermin.size(); t++){
                 for(int r = 0; r < allRaeume.size(); r++){
-                    all_literals[k][t][r] = ctx.mkBoolConst(allKlausur.get(k).getKlausurnummer()+"_"+allTermin.get(t).getName()+"_"+allRaeume.get(r).getName());
+                    allKlausurCopy.get(k).setKlausurnummer("K" + k);
+                    all_literals[k][t][r] = ctx.mkBoolConst("K"+ k +"_"+allTermin.get(t).getName()+"_"+allRaeume.get(r).getName());
                 }
             }
         }
@@ -75,7 +103,7 @@ public class Main{
         }
         while(wunschtermine >= 0){
             if(tempKlausur.getTeilnehmer() <= r1.getKapazitaet()){
-                retmodel = noSplit(all_literals, allKlausur, allTermin, allRaeume, ctx);
+                retmodel = noSplit(all_literals, allKlausurCopy, allTermin, allRaeume, ctx);
                 if(retmodel != null){
                     return retmodel;
                 }
@@ -345,29 +373,30 @@ public class Main{
         Solver s = ctx.mkSolver();
         HashMap <Integer, Integer> klausuren_spliting_map = new HashMap<>();
 
-        for(Klausur k : allKlausuren){
-            if(k.getTeilnehmer() <= 5){
-                klausur_must_merg.add(k);
-            }else{
-                klausur_not_split.add(k);
-            }
-        }
-        if(klausur_must_merg.size() % 2 != 0){
-            Klausur biggestKlausur = searchBiggestKlausur(klausur_must_merg);
-            klausur_not_split.add(biggestKlausur);
-        }
-        klausur_not_split.removeAll(klausur_must_merg);
+//        for(Klausur k : allKlausuren){
+//            if(k.getTeilnehmer() <= 5){
+//                klausur_must_merg.add(k);
+//            }else{
+//                klausur_not_split.add(k);
+//            }
+//        }
+//        if(klausur_must_merg.size() % 2 != 0){
+//            Klausur biggestKlausur = searchBiggestKlausur(klausur_must_merg);
+//            klausur_not_split.add(biggestKlausur);
+//        }
+//        klausur_not_split.removeAll(klausur_must_merg);
 
         for(int k = 0; k < allKlausuren.size(); k++){
-            if(klausur_must_merg.contains(allKlausuren.get(k))){
-                klausuren_spliting_map.put(k, 4);
-            }else if(klausur_not_split.contains(allKlausuren.get(k))){
+//            if(klausur_must_merg.contains(allKlausuren.get(k))){
+//                klausuren_spliting_map.put(k, 4);
+//            }else
+                if(klausur_not_split.contains(allKlausuren.get(k))){
                 klausuren_spliting_map.put(k, 1);
             }
         }
 
-        part_formulas = mkMerge(allLiterals, allKlausuren, allTermin, allRaum, ctx, klausuren_spliting_map);
-        formulas.addAll(part_formulas);
+//        part_formulas = mkMerge(allLiterals, allKlausuren, allTermin, allRaum, ctx, klausuren_spliting_map);
+//        formulas.addAll(part_formulas);
         part_formulas = mkNoKlausurSplit(allLiterals, allKlausuren, allTermin, allRaum, ctx, klausuren_spliting_map);
         formulas.addAll(part_formulas);
         for(BoolExpr b : formulas){
@@ -528,12 +557,10 @@ public class Main{
         FileReader f = new FileReader(file);
         BufferedReader r = new BufferedReader(f);
         String[] line;
-        int nummer = 1;
         List<Klausur> ret = new LinkedList<>();
         r.readLine();
         String temp = r.readLine();
         while(temp != null){
-            String klausurnummer = "K"+nummer;
             line = temp.split("[,]");
             String name = line[0];
             int dauer = Integer.parseInt(line[1]);
@@ -557,9 +584,13 @@ public class Main{
             if(line.length > 8){
                 SBnummer = line[8].split("[ ]");
             }
+            String merg = "";
+            if(line.length > 9){
+                merg = line[9];
+            }
             Date date = new Date(Integer.parseInt(datum[2]),Integer.parseInt(datum[1]),Integer.parseInt(datum[0]),
                    Integer.parseInt(zeit[0]),Integer.parseInt(zeit[1]));
-            Klausur klausur = new Klausur(klausurnummer, name, dauer, teilnehmer, date);
+            Klausur klausur = new Klausur(name, dauer, teilnehmer, date);
             if(studiengang != null){
                 for(String s : studiengang){
                     klausur.addStudiengang(s);
@@ -583,9 +614,15 @@ public class Main{
                         klausur.addSBnummer(s);
                 }
             }
+            if(merg != null) {
+                if (merg.contains("ja") || merg.contains("Ja") || merg.contains("JA")){
+                    klausur.setMerg(true);
+                }else{
+                    klausur.setMerg(false);
+                }
+            }
             ret.add(klausur);
             temp = r.readLine();
-            nummer += 1;
         }
         return ret;
     }
