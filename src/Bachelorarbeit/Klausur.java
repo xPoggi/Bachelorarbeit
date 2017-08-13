@@ -58,12 +58,36 @@ public class Klausur {
         this.SBnummer.add(SBnummer);
     }
 
+    public void addAllSBnummer (List<String>SBnummer){
+        for(String s : SBnummer){
+            if(!this.SBnummer.contains(s)){
+                this.SBnummer.addAll(SBnummer);
+            }
+        }
+    }
+
     public void addWunschTermin(String wunsch_termin) {
         this.wunschTermin.add(wunsch_termin);
     }
 
     public void addMussTermin(String muss_termin) {
         this.mussTermin.add(muss_termin);
+    }
+
+    public void addAllMussTermin(List<String> mussTermin){
+        for(String s : mussTermin){
+            if(!this.mussTermin.contains(s)){
+                this.mussTermin.addAll(mussTermin);
+            }
+        }
+    }
+
+    public void addAllWunschTermin(List<String> wunschTermin){
+        for(String s : wunschTermin){
+            if(!this.wunschTermin.contains(s)){
+                this.wunschTermin.addAll(wunschTermin);
+            }
+        }
     }
 
     public List<String> getWunschTermin() {
@@ -92,6 +116,10 @@ public class Klausur {
      */
     public int getDauer(){
         return this.Dauer;
+    }
+
+    public void addTeilnehmer(int teilnehmer){
+        this.Teilnehmer += teilnehmer;
     }
 
     /**
@@ -137,5 +165,13 @@ public class Klausur {
 
     public void addStudiengang(String s){
         studiengang.add(s);
+    }
+
+    public void addAllStudiengang(Set<String> studiengang){
+        for(String s : studiengang){
+            if(!this.studiengang.contains(s)){
+                this.studiengang.addAll(studiengang);
+            }
+        }
     }
 }

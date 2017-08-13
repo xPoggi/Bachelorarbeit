@@ -184,7 +184,7 @@ public class Main{
                 temp_array = new BoolExpr[klausur_is_written_once.size()];
                 temp_array = klausur_is_written_once.toArray(temp_array);
                 ret.add(ctx.mkOr(temp_array));
-                klausur_is_written_once.clear();
+                klausur_is_written_once.clear();//öö
             }
         }
         return ret;
