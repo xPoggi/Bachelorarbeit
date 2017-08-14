@@ -8,12 +8,13 @@ public class Raum {
 
     private String Name; //Name des Raumes.
     private String nummer; //Nummer des Raumes.
-    private int Kapazitaet;
+    private int Kapazitaet; //Personen die der Raum fassen kann
 
     /**
      * Erstellt einen Raum mit Namen und Nummer
      * @param RaumName Name des Raumes (String)
      * @param RaumNummer Nummer des Raumes (int)
+     * @param Kapazitaet Platz in dem Raum (int)
      */
     public Raum(String RaumName, String RaumNummer, int Kapazitaet){
         this.Name = RaumName;
@@ -23,7 +24,7 @@ public class Raum {
 
     /**
      * Gibt den Namen des Raumes zurück. (Stirng)
-     * @return
+     * @return String-Wert, welcher dem Namen des Raumes entspricht
      */
     public String getName() {
         return this.Name;
@@ -31,14 +32,15 @@ public class Raum {
 
     /**
      * Gibt die Nummer des Raumes zurück. (int)
-     * @return
+     * @return String-Wert, welcher der Nummer des Raumes entspricht.
      */
     public String getNummer() {
         return this.nummer;
     }
 
     /**
-     * @return
+     * Gibt die Kapazitaet des Raumes zurück.
+     * @return Integer-Wert, welcher der Kapazität des Raumes entspricht
      */
     public int getKapazitaet(){
         return this.Kapazitaet;
