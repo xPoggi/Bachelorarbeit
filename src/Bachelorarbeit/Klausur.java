@@ -11,43 +11,52 @@ public class Klausur {
     private String klausurnummer; //Nummer der Klausur
     private String Name; //Name der Klausur
     private int Dauer; //Dauer der Klausur
-    private Date Datum; //Datum der Klausur
     private int Teilnehmer; //Teilnehmer der Klausur
-    private boolean merg; //Bool-Wert, ob die Klausur zusammengelegt werden darf
     private HashMap<Termin, List<Raum>> terminmap = new HashMap<>(); //Map über Termine und Raeume, an denen die Klausur stattfindt.(nur ein Termin vorhanden)
     private Set<String> studiengang = new TreeSet<>(); //Set über Studiengänge
     private List<String> SBnummer = new LinkedList<>(); //Liste über SBnummern(EDV-Nummern) einzigaritg für jede Klausur(kann mehrere beinhalten)
     private List<String> wunschTermin = new LinkedList<>(); //Liste über Wunschtermine, an denen die Klausur stattfinden soll
     private List<String> mussTermin = new LinkedList<>(); //Liste über Musstermine, an denen die Klausur stattfinden muss!
+    private String klausurArt; //Art der Klausur(z.B. gleiche Klausur aber unterschiedliche Namen, dann Art gleich)
+    private String mergedKlausurnummer;
 
     /**
      * Erstellt eine Klausur mit bestimmten Parametern.
      * @param KlausurName Name der Klausur
      * @param KlausurDauer Dauer der Klausur
      * @param Teilnehmer Teilnehmer an dieser Klausur
-     * @param Datum Das Datum der Klausur
+     * @param klausurArt Die Art der Klausur(ob eine Klausur einen anderen Namen hat aber trozdem zu einer Anderen gehört.)
      */
-    public Klausur(String KlausurName, int KlausurDauer, int Teilnehmer, Date Datum){
+    public Klausur(String KlausurName, int KlausurDauer, int Teilnehmer, String klausurArt, String nummer){
         this.Name = KlausurName;
         this.Dauer = KlausurDauer;
         this.Teilnehmer = Teilnehmer;
-        this.Datum = Datum;
+        this.klausurArt = klausurArt;
+        this.klausurnummer = nummer;
     }
 
     /**
-     * Methode, mit der es möglich ist den Wert zu verändern, ob eine Klausur zusammengelegt werden darf
-     * @param merg Der Boolean(ture oder false) ob es erlaubt ist diese Klausur zusammen zulegen.
+     *
+     * @param nummer
      */
-    public void setMerg(boolean merg){
-        this.merg = merg;
+    public void setMergedKlausurnummer(String nummer){
+        this.mergedKlausurnummer = nummer;
     }
 
     /**
-     * Gibt den Wahrheitswert zurück, welcher besagt, ob diese Klausur zusammengelegt werden darf.
-     * @return Der Boolische-Wert(ture oder false), der beschreibt, ob eine Klausur zusammengelegt werden darf.
+     *
+     * @return
      */
-    public boolean getMerg(){
-        return this.merg;
+    public String getMergedKlausurnummer(){
+        return this.mergedKlausurnummer;
+    }
+
+    /**
+     *
+     * @return
+     */
+    public String getKlausurart(){
+        return this.klausurArt;
     }
 
     /**
@@ -191,39 +200,6 @@ public class Klausur {
     }
 
     /**
-     *
-     * @return
-     */
-    public String getDatum() {
-        return this.Datum.getDate() + "." + this.Datum.getMonth() + "."+ this.Datum.getYear();
-    }
-
-    /**
-     *
-     * @return
-     */
-    public String getTime(){
-        return this.Datum.getHours() + ":" + this.Datum.getMinutes();
-    }
-
-    /**
-     *
-     * @return
-     */
-    public String getKlausurStart(){
-        return this.Datum.getHours() + ":" + this.Datum.getMinutes();
-    }
-
-    /**
-     *
-     * @return
-     */
-    public String toString(){
-        return "Klausur: " + this.Name + "\tTeilnehmer: " + this.Teilnehmer + "\tDatum: "
-                + this.getDatum() + "\tBeginn: " +this.getKlausurStart() + " " + "\tDauer: " + this.getDauer();
-    }
-
-    /**
      * Gibt eine Hashmap zurück, in welcher die zugeordneten Raeume und Termine entahlten sind.
      * @return HashMap über Termine und Raeume, welche dieser Klausur zugeordnet wurden.
      */
@@ -266,5 +242,13 @@ public class Klausur {
                 this.studiengang.add(s);
             }
         }
+    }
+
+    /**
+     *
+     * @return
+     */
+    public String toString(){
+        return "Klausur: " + this.Name + "\tTeilnehmer: " + this.Teilnehmer + " " + "\tDauer: " + this.Dauer;
     }
 }

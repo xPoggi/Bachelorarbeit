@@ -14,11 +14,19 @@ import java.util.*;
 public class Main{
 
     private static int mergWert = 5;
-    private static int splitWert = 30;
+    private static int splitWert = 25;
 
+    /**
+     *
+     * @param args
+     * @throws Z3Exception
+     * @throws IOException
+     * @throws TestFailedException
+     * @throws addFailExeption
+     */
     public static void main(String[] args) throws Z3Exception, IOException, TestFailedException, addFailExeption{
         //Start des Programms speichern, um die Laufzeit zu berechnen.
-        long start = new Date().getTime();
+        long start = System.currentTimeMillis();
         //Read Data.
         String dataPathlLappy = "C:\\Users\\poggi\\IdeaProjects\\Bachelorarbeit\\test\\two_treesplit\\";
         String dataPath = "C:\\Users\\brige\\IdeaProjects\\Bachelorarbeit\\test\\two_treesplit\\";
@@ -27,8 +35,15 @@ public class Main{
         List<Raum> raeume = readFilesRaume(dataPath + args[2]);
         List<Termin> termine = readFilesTermin(dataPath + args[1], raeume);
 
+        System.out.println("Versuche " + klausuren.size() + " Klausuren, " + raeume.size() + " Räume und " + termine.size() + " Termine zu planen!"
+                + "\nDabei ist das Zusammenlegen von Klausuren auf " + args[3] + " eingestellt");
+
+        //bearbeiten von den eingelesenen Daten.
         klausuren = klausurenFilter(klausuren);
-        LinkedList<Klausur> allKlausurMerg = findMergKlausuren(klausuren);
+        LinkedList<Klausur> allKlausurMerg = new LinkedList<>();
+        if(Boolean.valueOf(args[3])){
+            allKlausurMerg = findMergKlausuren(klausuren);
+        }
 
         //Z3 Context erstellen um SAT-Solver Nutzen zu können.
         HashMap<String, String> cfg = new HashMap<>();
@@ -36,16 +51,13 @@ public class Main{
         Context ctx = new Context(cfg);
         //Z3 Ausgabe umstellen.(nicht mehr SMT sondern einfache Variablen mit deren boolischen Werten)
         ctx.setPrintMode(Z3_ast_print_mode.Z3_PRINT_LOW_LEVEL);
-
-        System.out.println("Versuche " + klausuren.size() + " Klausuren, " + raeume.size() + " Räume und " + termine.size() + " Termine zu planen!");
-
         //Einen möglichen Plan suchen.
         Model plan = KlausurPlanning(klausuren, allKlausurMerg, termine, raeume, ctx);
         //Falls ein Plan existiert, diesen von Z3 zu einem Plan übersetzen.
         mkPlan(plan, klausuren, termine, raeume);
         //Die Laufzeit des Programmes berechnen.
-        long runningTime = new Date().getTime() - start;
-        System.out.println("Das Planen hat: " + (int)(runningTime/1000/60) + " Sekunden gedauert!");
+        long runningTime = System.currentTimeMillis() - start;
+        System.out.println("Das Planen hat: " + runningTime/1000 + " Sekunden gedauert!");
     }
 
     /**
@@ -82,19 +94,20 @@ public class Main{
                 allKlausurCopy.add(mkMerg(allKlausurenMerg.get(k), allKlausurenMerg.get(k+1)));
             }
         }
-        //---------------Creating or-literals----------------------
-        for(int k = 0; k < allKlausurCopy.size(); k++){
-            allKlausurCopy.get(k).setKlausurnummer("K" + (k+1));
-            if(allKlausurCopy.get(k).getName().contains("_")){
-                String[] getMergedKlausur = allKlausurCopy.get(k).getName().split("_");
-                for(int mergnummer = 0; mergnummer < getMergedKlausur.length; mergnummer++){
-                    Klausur mergedKlausur = getKlausurByName(allKlausuren, getMergedKlausur[mergnummer]);
-                    mergedKlausur.setKlausurnummer("K" + (k+1));
+        for(Klausur k1 : allKlausurCopy){
+            if(k1.getMergedKlausurnummer() != null){
+                for(Klausur k2 : allKlausuren){
+                    if(k1 != k2 && k2.getKlausurnummer().equals(k1.getMergedKlausurnummer())){
+                        k2.setKlausurnummer(k1.getKlausurnummer());
+                    }
                 }
             }
+        }
+        //---------------Creating or-literals----------------------
+        for(int k = 0; k < allKlausurCopy.size(); k++){
             for(int t = 0; t < allTermine.size(); t++){
                 for(int r = 0; r < allRaeume.size(); r++){
-                    all_literals[k][t][r] = ctx.mkBoolConst("K"+ (k+1) +"_"+allTermine.get(t).getName()+"_"+allRaeume.get(r).getName());
+                    all_literals[k][t][r] = ctx.mkBoolConst(allKlausurCopy.get(k).getKlausurnummer() +"_"+allTermine.get(t).getNummer()+"_"+allRaeume.get(r).getNummer());
                 }
             }
         }
@@ -165,14 +178,12 @@ public class Main{
         List<BoolExpr> klausur_is_written_once = new LinkedList<>();
         List<BoolExpr> implication_list = new LinkedList<>();
         BoolExpr[] temp_array;//Used to create arrays out of lists.
-        boolean mussterminFound = false;
         //---------------Declaration end---------------------------
         for(int k = 0; k < allKlausuren.size(); k++) {
             if (splitMap.get(k) == 1){
                 for (int t = 0; t < allTermine.size(); t++) {
                     if((!allKlausuren.get(k).getWunschTermin().isEmpty() || !allKlausuren.get(k).getMussTermin().isEmpty()) &&
                         !(allKlausuren.get(k).getWunschTermin().contains(allTermine.get(t).getName()) || allKlausuren.get(k).getMussTermin().contains(allTermine.get(t).getName()))){
-                        mussterminFound = true;
                         continue;
                     }
                     for (int r = 0; r < allRaeume.size(); r++) {
@@ -202,10 +213,6 @@ public class Main{
                             ret.add(ctx.mkImplies(allLiterals[k][t][r], ctx.mkNot(ctx.mkOr(temp_array))));
                             implication_list.clear();
                         }
-                    }
-                    if(mussterminFound){
-                        mussterminFound = false;
-                        break;
                     }
                 }
                 temp_array = new BoolExpr[klausur_is_written_once.size()];
@@ -516,40 +523,39 @@ public class Main{
         List<Klausur> ret = new LinkedList<>();
         r.readLine();
         String temp = r.readLine();
+        int nummer = 1;
         while(temp != null){
+            String klausurnummer = "K" + nummer;
             line = temp.split("[,]");
             String name = line[0];
             int dauer = Integer.parseInt(line[1]);
             int teilnehmer = Integer.parseInt(line[2]);
-            String[] datum = line[3].split("[.]");
-            String[] zeit = line[4].split(":");
-            //Date date = null;
             String[] studiengang = null;
-            if(line.length > 5){
-                studiengang = line[5].split("[ ]");
+            if(line.length > 3){
+                studiengang = line[3].split("[ ]");
             }
             String[] wunschTermin = null;
-            if(line.length > 6){
-                wunschTermin = line[6].split("[ ]");
+            if(line.length > 4){
+                wunschTermin = line[4].split("[ ]");
             }
             String[] mussTermin = null;
-            if(line.length > 7){
-                mussTermin = line[7].split("[ ]");
+            if(line.length > 5){
+                mussTermin = line[5].split("[ ]");
             }
             String[] SBnummer = null;
-            if(line.length > 8){
-                SBnummer = line[8].split("[ ]");
+            if(line.length > 6){
+                SBnummer = line[6].split("[ ]");
             }
-            String merg = "";
-            if(line.length > 9){
-                merg = line[9];
+            String klausurArt = "";
+            if(line.length > 7 && !line[7].equals("")){
+                klausurArt = line[7];
             }
-//            Date date = new Date(Integer.parseInt(datum[2]),Integer.parseInt(datum[1]),Integer.parseInt(datum[0]),
-//                   Integer.parseInt(zeit[0]),Integer.parseInt(zeit[1]));
-            Klausur klausur = new Klausur(name, dauer, teilnehmer, null);
+            Klausur klausur = new Klausur(name, dauer, teilnehmer, klausurArt, klausurnummer);
             if(studiengang != null){
                 for(String s : studiengang){
-                    klausur.addStudiengang(s);
+                    if(!s.equals("")){
+                        klausur.addStudiengang(s);
+                    }
                 }
             }
             if(wunschTermin != null){
@@ -570,15 +576,9 @@ public class Main{
                         klausur.addSBnummer(s);
                 }
             }
-            if(merg != null) {
-                if (merg.contains("ja") || merg.contains("Ja") || merg.contains("JA")){
-                    klausur.setMerg(true);
-                }else{
-                    klausur.setMerg(false);
-                }
-            }
             ret.add(klausur);
             temp = r.readLine();
+            nummer ++;
         }
         return ret;
     }
@@ -596,14 +596,16 @@ public class Main{
         List<Raum> ret = new LinkedList<>();
         r.readLine();
         String temp = r.readLine();
+        int raumnummer = 1;
         while(temp != null){
             line = temp.split(",");
             String name = line[0];
-            String nummer = line[1];
-            int kapazitaet = Integer.parseInt(line[2]);
-            Raum raum = new Raum(name, nummer, kapazitaet);
+            String nummer = "R" + raumnummer;
+            int kapazitaet = Integer.parseInt(line[1]);
+            Raum raum = new Raum(name, kapazitaet, nummer);
             ret.add(raum);
             temp = r.readLine();
+            raumnummer++;
         }
         return ret;
     }
@@ -611,29 +613,34 @@ public class Main{
     /**
      * Liest alle Informationen über die Termine ein.
      * @param file Der Pfad zu der Datei, in der die Informationen über die Termine liegen.
-     * @param raeume Liste über Raeume. Mit dieser Liste werden raeume, in den Terminen stehen zu diesem Termin als belegt makiert.
+     * @param allRaeume Liste über Raeume. Mit dieser Liste werden allRaeume, in den Terminen stehen zu diesem Termin als belegt makiert.
      * @return Eine Liste mit allen eingelesenen Daten über Termine.
      * @throws IOException Kann IOExeption erzeugen, wenn die Datei nicht gefunden wird, z.B wenn der Pfad nicht stimmt, oder die Datei nicht existiert.
      */
-    private static List<Termin> readFilesTermin(String file, List<Raum> raeume) throws IOException{
+    private static List<Termin> readFilesTermin(String file, List<Raum> allRaeume) throws IOException{
         List<Termin> ret = new LinkedList<>();
         FileReader f = new FileReader(file);
         BufferedReader r = new BufferedReader(f);
         String[] line;
         r.readLine();
         String temp = r.readLine();
+        int Terminnummer = 1;
         while(temp != null){
             line = temp.split(",");
             String[] raumname = null;
             String name = line[0];
+            String nummer = "T" + Terminnummer;
             if(line.length > 1){
                 raumname = line[1].split(" ");
             }
-            Termin termin = new Termin(name);
+            Termin termin = new Termin(name, nummer);
             if(raumname != null){
-                for (Raum ra : raeume){
+                for (Raum ra : allRaeume){
+                    if(raumname[0].equals("")){
+                        break;
+                    }
                     for(int r_index = 0; r_index < raumname.length; r_index++){
-                        if(ra.getName().contains(raumname[r_index])){
+                        if(ra.getName().contains(raumname[r_index]) && !raumname[r_index].equals("")){
                             termin.addRaum(ra);
                         }
                     }
@@ -641,6 +648,7 @@ public class Main{
             }
             ret.add(termin);
             temp = r.readLine();
+            Terminnummer++;
         }
         return ret;
     }
@@ -648,12 +656,12 @@ public class Main{
     /**
      *  Sucht in einer gegebenen List nach einer Klausur, in dem der Name dieser verglichen wird.
      * @param allKlausuren Liste über Klausuren, in welcher nach einer Klausur gesucht werden soll.
-     * @param klausurKame Der Name der Klausur, welche gesucht werden soll.
+     * @param klausurNumber Der Name der Klausur, welche gesucht werden soll.
      * @return Die gefundenen Klausur, andernfalls wird eine NullPointerException generiert.
      */
-    private static Klausur getKlausurByName(List<Klausur> allKlausuren, String klausurKame){
+    private static Klausur getKlausurByNumber(List<Klausur> allKlausuren, String klausurNumber){
         for(Klausur k : allKlausuren){
-            if(k.getName().equals(klausurKame)){
+            if(k.getKlausurnummer().equals(klausurNumber)){
                 return k;
             }
         }
@@ -694,11 +702,7 @@ public class Main{
         if(k2 != null){
             check.retainAll(k2.getStudiengang());
         }
-        if(check.isEmpty()){
-            return true;
-        }else{
-            return false;
-        }
+        return check.isEmpty();
     }
 
     /**
@@ -718,7 +722,8 @@ public class Main{
 
     /**
      * Sucht 2 Klausuren, deren Teilnehmeranzahl unter mergWert (momentan 5) liegen und nicht den gleichen Studiengang haben.
-     * Außerdem müssen sie als Zusammenlegbar makiert worden sein(Durch Informationsdaten). Diese Klausuren werden dann in einer Liste gespeichert.
+     * Außerdem muss dem Programm als ARGS-Parameter 3 ein Boolischer-Wert gegeben werden, welcher bestimmt ob zusammen gelegt werden soll.
+     * Diese Klausuren werden dann in einer Liste gespeichert.
      * @param allKlausuren Klausurenliste, aus welcher Klausuren zusammengelegt werden sollen.
      * @return Eine Liste mit Klausuren, die zusammengelegt werden können.
      */
@@ -728,7 +733,7 @@ public class Main{
         for(Klausur k1 : allKlausuren){
             for(Klausur k2 : allKlausuren){
                 if(k1.getTeilnehmer() <= mergWert && k2.getTeilnehmer() <= mergWert &&
-                        checkStudiengang(k1, k2) && k1 != k2 && k1.getMerg() && k2.getMerg() &&
+                        checkStudiengang(k1, k2) && k1 != k2 &&
                         !ret.contains(k1) && !ret.contains(k2)){
                     ret.add(k1);
                     ret.add(k2);
@@ -746,7 +751,7 @@ public class Main{
      * @return Eine neue Klausur und allen Informationen aus k1 und k2.
      */
     private static Klausur mkMerg(Klausur k1, Klausur k2){
-        Klausur ret = new Klausur(k1.getName()+"_"+k2.getName(),k1.getDauer(),k1.getTeilnehmer()+k2.getTeilnehmer(),null);
+        Klausur ret = new Klausur(k1.getName()+"_"+k2.getName(),k1.getDauer(),k1.getTeilnehmer()+k2.getTeilnehmer(),"", k1.getKlausurnummer());
         ret.addAllSBnummer(k1.getSBnummer());
         ret.addAllSBnummer(k2.getSBnummer());
         ret.addAllStudiengang(k1.getStudiengang());
@@ -755,6 +760,8 @@ public class Main{
         ret.addAllMussTermin(k2.getMussTermin());
         ret.addAllWunschTermin(k1.getWunschTermin());
         ret.addAllWunschTermin(k2.getWunschTermin());
+        k1.setMergedKlausurnummer(k2.getKlausurnummer());
+        k2.setMergedKlausurnummer(k1.getKlausurnummer());
         return ret;
     }
 
@@ -770,7 +777,8 @@ public class Main{
 
         for(int k1 = 0; k1 < ret.size(); k1++){
             for(int k2 = k1; k2 < ret.size(); k2++){
-                if(k1 != k2 && ret.get(k1).getName().contains(ret.get(k2).getName())){
+                if(k1 != k2 && ret.get(k1).getKlausurart().contains(ret.get(k2).getKlausurart()) &&
+                        !ret.get(k1).getKlausurart().equals("") && !ret.get(k2).getKlausurart().equals("")){
                     if(!duplikats.contains(ret.get(k1))){
                         duplikats.add(ret.get(k1));
                     }
@@ -780,21 +788,11 @@ public class Main{
                 }
             }
         }
-        for(Klausur k1 : duplikats){
-            List<Klausur> remove = new LinkedList<>();
-            for(Klausur k2 : ret){
-                if(k1 != k2 && k1.getName().contains(k2.getName())){
-                    remove.add(k2);
-                }
-            }
-            if(!remove.isEmpty()){
-                ret.removeAll(remove);
-            }
-        }
+        ret.removeAll(duplikats);
         for(int k1 = 0; k1 < duplikats.size(); k1++){
             Klausur zusammengefasst = duplikats.get(k1);
             for(int k2 = k1; k2 < duplikats.size(); k2++){
-                if(k1 != k2 && zusammengefasst.getName().contains(duplikats.get(k2).getName())){
+                if(k1 != k2 && zusammengefasst.getKlausurart().contains(duplikats.get(k2).getKlausurart())){
                     zusammengefasst.addAllSBnummer(duplikats.get(k2).getSBnummer());
                     zusammengefasst.addAllStudiengang(duplikats.get(k2).getStudiengang());
                     zusammengefasst.addTeilnehmer(duplikats.get(k2).getTeilnehmer());
@@ -802,7 +800,7 @@ public class Main{
                     zusammengefasst.addAllWunschTermin(duplikats.get(k2).getWunschTermin());
                 }
             }
-            if(!containsKlausurByName(ret, zusammengefasst.getName())){
+            if(!containsKlausurByArt(ret, zusammengefasst.getKlausurart())){
                 ret.add(zusammengefasst);
             }
         }
@@ -812,12 +810,12 @@ public class Main{
     /**
      * Überprüft eine Klausurenliste, ob eine Klausur enthaltenist, wobei eine Klausur nach Name gesucht wird.
      * @param allKlausuren Klausurenliste, welche geprüft werden soll.
-     * @param klausurName Der Name der Klausur, welche gesucht wird.
+     * @param klausurArt Die Art der Klausur, welche gesucht wird.
      * @return Ein Boolischer-Wert wird zurück gegeben, welcher ture ist, wenn die Klausur gefunden wird und false, wenn diese nicht enthalten ist.
      */
-    private static boolean containsKlausurByName(List<Klausur> allKlausuren, String klausurName){
+    private static boolean containsKlausurByArt(List<Klausur> allKlausuren, String klausurArt){
         for(Klausur k : allKlausuren){
-            if(k.getName().contains(klausurName)){
+            if(k.getKlausurart().contains(klausurArt)){
                 return true;
             }
         }
@@ -853,17 +851,25 @@ public class Main{
                         planklausur[0] = k;
                     }else{
                         planklausur[1] = k;
-                    };
+                    }
+                }if(k.getMergedKlausurnummer() != null){
+                    if(k.getMergedKlausurnummer().equals(temp[0])){
+                        if(planklausur[0] == null){
+                            planklausur[0] = k;
+                        }else{
+                            planklausur[1] = k;
+                        }
+                    }
                 }
             }
             for(Termin t : allTermine){
-                if(t.getName().equals(temp[1])){
+                if(t.getNummer().equals(temp[1])){
                     plantermin = t;
                     break;
                 }
             }
             for(Raum r : allRaeume){
-                if(r.getName().equals(temp[2])){
+                if(r.getNummer().equals(temp[2])){
                     planraum.add(r);
                 }
             }
@@ -886,46 +892,87 @@ public class Main{
                 }
             }
         }
-        String[][] klausurplan = new String[allKlausuren.size()+1][allTermine.size()+1];
-        for(int k = 0; k < allKlausuren.size(); k++){
-            klausurplan[k+1][0] = allKlausuren.get(k).getName();
-        }
-        for(int t = 0; t < allTermine.size(); t++){
-            klausurplan[0][t+1] = allTermine.get(t).getName();
-        }
 
-        for(int k = 0; k < allKlausuren.size(); k++){
-            HashMap<Termin, List<Raum>> temp = allKlausuren.get(k).getTerminmap();
-            for(Termin t : temp.keySet()){
-                for(int t_2 = 0; t_2 < allTermine.size(); t_2++){
-                    if(t.equals(allTermine.get(t_2))){
-                        for(Raum r : temp.get(t)){
-                            klausurplan[k+1][t_2+1] += r.getName() + " ";
-                            System.out.println(allKlausuren.get(k).getKlausurnummer() + " findet im Raum " + r.getName() + " zum Termin " + t.getName() + " Statt.");
+        LinkedList<String> allStudiengaenge = new LinkedList<>();
+        for(Klausur k : allKlausuren){
+            for(String s : k.getStudiengang()){
+                if(!allStudiengaenge.contains(s)){
+                    allStudiengaenge.add(s);
+                }
+            }
+        }
+        LinkedList<Klausur> klausurenNachStudiengang = new LinkedList<>();
+        LinkedList<Termin> termineNachStudiengang = new LinkedList<>();
+
+        for(int i = 0; i < allStudiengaenge.size(); i++){
+            for(Klausur k : allKlausuren){
+                for(String s : k.getStudiengang()){
+                    if(allStudiengaenge.get(i).equals(s) && !klausurenNachStudiengang.contains(k)){
+                        klausurenNachStudiengang.add(k);
+                        for(Termin t : k.getTerminmap().keySet()){
+                            if(!termineNachStudiengang.contains(t)){
+                                termineNachStudiengang.add(t);
+                            }
                         }
                     }
                 }
             }
-        }
-        try
-        {
-            FileWriter fw = new FileWriter("Plan.csv");
-            BufferedWriter bw = new BufferedWriter(fw);
-            for(int row = 0; row < klausurplan[0].length; row ++){
-                for(int column = 0; column < klausurplan.length; column ++){
-                    if(klausurplan[column][row] == null){
-                        bw.write(",");
-                    }else{
-                        bw.write(klausurplan[column][row].replace("null", "") + ",");
+            String[][] klausurplan = new String[klausurenNachStudiengang.size()+1][termineNachStudiengang.size()+1];
+            for(int k = 0; k < klausurenNachStudiengang.size(); k++){
+                klausurplan[k+1][0] = klausurenNachStudiengang.get(k).getName();
+            }
+            for(int t = 0; t < termineNachStudiengang.size(); t++){
+                klausurplan[0][t+1] = termineNachStudiengang.get(t).getName();
+            }
+            for(int k = 0; k < klausurenNachStudiengang.size(); k++){
+                HashMap<Termin, List<Raum>> temp = klausurenNachStudiengang.get(k).getTerminmap();
+                for(Termin t : temp.keySet()){
+                    for(int t_2 = 0; t_2 < termineNachStudiengang.size(); t_2++){
+                        if(t.equals(termineNachStudiengang.get(t_2))){
+                            for(Raum r : temp.get(t)){
+                                klausurplan[k+1][t_2+1] += r.getName() + " ";
+                            }
+                        }
                     }
                 }
-                bw.write("\n");
             }
-            bw.close();
-            fw.close();
-        }catch ( IOException e){
-            System.err.println(e);
-        };
+            try{
+                FileWriter fw = new FileWriter("Plan " + allStudiengaenge.get(i) + ".csv");
+                BufferedWriter bw = new BufferedWriter(fw);
+                for(int row = 0; row < klausurplan[0].length; row ++){
+                    for(int column = 0; column < klausurplan.length; column ++){
+                        if(klausurplan[column][row] == null){
+                            bw.write(",");
+                        }else{
+                            bw.write(klausurplan[column][row].replace("null", "") + ",");
+                        }
+                    }
+                    bw.write("\n");
+                }
+                bw.close();
+                fw.close();
+            }catch ( IOException e){
+                System.err.println(e);
+            }
+            klausurenNachStudiengang.clear();
+            termineNachStudiengang.clear();
+        }
+
+        Map<Integer, String> ausgabemap = new TreeMap<Integer, String>();
+        for(String s : klausurenplan){
+            String [] ausgabeplan = s.split("_");
+            int key = Integer.parseInt(ausgabeplan[0].replace("K", ""));
+            if(ausgabemap.containsKey(key)){
+                String temp = ausgabemap.get(key);
+                temp += "\n" + ausgabeplan[0] + " findet in Raum " + ausgabeplan[2] + " zum Termin " + ausgabeplan[1] + " statt.";
+                ausgabemap.replace(key, temp);
+            }else{
+                ausgabemap.put(key, ausgabeplan[0] + " findet in Raum " + ausgabeplan[2] + " zum Termin " + ausgabeplan[1] + " statt.");
+            }
+        }
+        for(int i : ausgabemap.keySet()){
+            System.out.println(ausgabemap.get(i));
+        }
         return;
     }
 }

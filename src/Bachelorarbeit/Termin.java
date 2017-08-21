@@ -10,13 +10,23 @@ public class Termin {
 
     private List<Raum> raeume = new LinkedList<>(); //Liste über belegte Raeume eines Termins
     private String name; //Name des Termins
+    private String nummer; //Nummer des Termins
 
     /**
      * Erstellt einen Termin
      * @param n Name des Termins
      */
-    public Termin(String n){
+    public Termin(String n, String nummer){
         this.name = n;
+        this.nummer = nummer;
+    }
+
+    /**
+     *
+     * @return
+     */
+    public String getNummer(){
+        return this.nummer;
     }
 
     /**

@@ -7,18 +7,17 @@ package Bachelorarbeit;
 public class Raum {
 
     private String Name; //Name des Raumes.
-    private String nummer; //Nummer des Raumes.
+    private String Nummer; //Nummer des Raumes.
     private int Kapazitaet; //Personen die der Raum fassen kann
 
     /**
      * Erstellt einen Raum mit Namen und Nummer
-     * @param RaumName Name des Raumes (String)
-     * @param RaumNummer Nummer des Raumes (int)
+     * @param RaumName Nummer des Raumes (String)
      * @param Kapazitaet Platz in dem Raum (int)
      */
-    public Raum(String RaumName, String RaumNummer, int Kapazitaet){
+    public Raum(String RaumName, int Kapazitaet, String Nummer){
         this.Name = RaumName;
-        this.nummer = RaumNummer;
+        this.Nummer = Nummer;
         this.Kapazitaet = Kapazitaet;
     }
 
@@ -35,7 +34,7 @@ public class Raum {
      * @return String-Wert, welcher der Nummer des Raumes entspricht.
      */
     public String getNummer() {
-        return this.nummer;
+        return this.Nummer;
     }
 
     /**
@@ -47,6 +46,6 @@ public class Raum {
     }
 
     public String toString(){
-        return "Raum: " + this.Name + "\t Raumnummer: " + this.nummer + "\t Kapazitaet: " + this.Kapazitaet;
+        return "Raum: " + this.Name + "\t Raumnummer: " + this.Nummer + "\t Kapazitaet: " + this.Kapazitaet;
     }
 }
