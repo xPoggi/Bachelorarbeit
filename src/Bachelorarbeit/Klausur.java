@@ -212,7 +212,7 @@ public class Klausur {
      * @param t Termin, an welcher die Klausur stattfindt.
      */
     public void addTermin (Termin t){
-        terminmap.put(t, new LinkedList<Raum>());
+        terminmap.put(t, new LinkedList<>());
     }
 
     /**

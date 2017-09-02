@@ -13,8 +13,8 @@ import java.util.*;
 
 public class Main{
 
-    private static int mergWert = 5;
-    private static int splitWert = 25;
+    private static final int mergeWert = 5;
+    private static final int splitWert = 25;
 
     /**
      *
@@ -27,8 +27,7 @@ public class Main{
     public static void main(String[] args) throws Z3Exception, IOException, TestFailedException, addFailExeption{
         //Start des Programms speichern, um die Laufzeit zu berechnen.
         long start = System.currentTimeMillis();
-        //Read Data.
-        String dataPathlLappy = "C:\\Users\\poggi\\IdeaProjects\\Bachelorarbeit\\test\\two_treesplit\\";
+        //Daten lesen.
         String dataPath = "C:\\Users\\brige\\IdeaProjects\\Bachelorarbeit\\test\\two_treesplit\\";
 
         List<Klausur> klausuren = readFilesKlausur(dataPath + args[0]);
@@ -38,18 +37,18 @@ public class Main{
         System.out.println("Versuche " + klausuren.size() + " Klausuren, " + raeume.size() + " Räume und " + termine.size() + " Termine zu planen!"
                 + "\nDabei ist das Zusammenlegen von Klausuren auf " + args[3] + " eingestellt");
 
-        //bearbeiten von den eingelesenen Daten.
+        //Bearbeiten von den eingelesenen Daten.
         klausuren = klausurenFilter(klausuren);
         LinkedList<Klausur> allKlausurMerg = new LinkedList<>();
         if(Boolean.valueOf(args[3])){
             allKlausurMerg = findMergKlausuren(klausuren);
         }
 
-        //Z3 Context erstellen um SAT-Solver Nutzen zu können.
+        //Z3 Context erstellen, um SAT-Solver nutzen zu können.
         HashMap<String, String> cfg = new HashMap<>();
         cfg.put("Model", "true");
         Context ctx = new Context(cfg);
-        //Z3 Ausgabe umstellen.(nicht mehr SMT sondern einfache Variablen mit deren boolischen Werten)
+        //Z3 Ausgabe umstellen.(nicht mehr SMT, sondern einfache Variablen mit deren booleschen Werten)
         ctx.setPrintMode(Z3_ast_print_mode.Z3_PRINT_LOW_LEVEL);
         //Einen möglichen Plan suchen.
         Model plan = KlausurPlanning(klausuren, allKlausurMerg, termine, raeume, ctx);
@@ -61,27 +60,27 @@ public class Main{
     }
 
     /**
-     * Diese Merhode überprüft die Klausuren und entscheidet anhand dieser, ob alle Klausuren in einen Raum passen,
+     * Diese Methode überprüft die Klausuren und entscheidet anhand dieser, ob alle Klausuren in einen Raum passen,
      * oder ob Klausuren aufgeteilt werden müssen. Hierbei wird die größte Klausur betrachtet und anhand dieser entweder noSplit,
      * twoSplit oder treeSplit aufgerufen.
-     * Falls kein Plan erstellt werden konnte, werden Wunschtermine entfernt, solang bis es keine mehr gibt. Danach entscheidet dass Programm,
-     * dass es keinen Plan erstellen kann und generiet eine TestFailedException.
-     * @param allKlausuren Die eingelesenen Daten über die verfühgbaren Klausuren.
+     * Falls kein Plan erstellt werden konnte, werden Wunschtermine entfernt, solange bis es keine mehr gibt. Danach entscheidet das Programm,
+     * dass es keinen Plan erstellen kann und generiert eine TestFailedException.
+     * @param allKlausuren Die eingelesenen Daten über die verfügbaren Klausuren.
      * @param allKlausurenMerg Die erstellten Daten von Klausuren, die zusammengelegt werden können.
-     * @param allTermine Die eingelesenen Daten über die verfühgbaren Termine.
-     * @param allRaeume Die eingelesenen Daten über die verfühgbaren Raeume.
+     * @param allTermine Die eingelesenen Daten über die verfügbaren Termine.
+     * @param allRaeume Die eingelesenen Daten über die verfügbaren Räume.
      * @param ctx Der Context von dem Sat-Solver Z3.
-     * @return Giebt das gefundene Model mit den Informationen zu dem Plan zurück.
-     * @throws TestFailedException Wenn der Plan nicht erstellt werden konnte, wird eine TestFailedException erzeugt.
-     * @throws Z3Exception Wenn es beim Erzeugen von BoolExpr zu Fehlern kommt wird diese Z3 Exception generiert.
+     * @return Gibt das gefundene Model mit den Informationen zu dem Plan zurück.
+     * @throws TestFailedException Wenn der Plan nicht erstellt werden konnte, wird eine TestFailedException geworfen.
+     * @throws Z3Exception Wenn es beim Erzeugen von BoolExpr zu Fehlern kommt, wird diese Z3 Exception geworfen.
      */
-    private static Model KlausurPlanning (List<Klausur> allKlausuren, List<Klausur> allKlausurenMerg, List<Termin> allTermine, List<Raum> allRaeume, Context ctx)throws TestFailedException, Z3Exception{
-        //---------------Declaration start-------------------------
+    private static Model KlausurPlanning (List<Klausur> allKlausuren, List<Klausur> allKlausurenMerg, List<Termin> allTermine, List<Raum> allRaeume, Context ctx) throws TestFailedException, Z3Exception{
+        //Beginn der Deklaration
         BoolExpr[][][] all_literals = new BoolExpr[allKlausuren.size()][allTermine.size()][allRaeume.size()];
         Model retmodel;
         LinkedList<Klausur> allKlausurCopy = new LinkedList<>();
-                            allKlausurCopy.addAll(allKlausuren);
-        //---------------Declaration end---------------------------
+        allKlausurCopy.addAll(allKlausuren);
+        //Ende der Deklaration
 
         if(allKlausurenMerg.size() % 2 != 0) {
             Klausur temp = searchBiggestKlausur(allKlausurenMerg);
@@ -103,7 +102,7 @@ public class Main{
                 }
             }
         }
-        //---------------Creating or-literals----------------------
+        //OR-Literale generieren
         for(int k = 0; k < allKlausurCopy.size(); k++){
             for(int t = 0; t < allTermine.size(); t++){
                 for(int r = 0; r < allRaeume.size(); r++){
@@ -127,7 +126,7 @@ public class Main{
             }
         }
         while(wunschtermine >= 0){
-            if(tempKlausur.getTeilnehmer() <= r1.getKapazitaet()){
+            if(tempKlausur.getTeilnehmer() <= (r1 != null ? r1.getKapazitaet() : 0)){
                 retmodel = noSplit(all_literals, allKlausurCopy, allTermine, allRaeume, ctx);
                 if(retmodel != null){
                     return retmodel;
@@ -138,7 +137,7 @@ public class Main{
                         r2 = r;
                     }
                 }
-                if(tempKlausur.getTeilnehmer() <= r1.getKapazitaet() + r2.getKapazitaet()){
+                if(tempKlausur.getTeilnehmer() <= (r1 != null ? r1.getKapazitaet() : 0) + (r2 != null ? r2.getKapazitaet() : 0)){
                     retmodel = splitTwoNoSplit(all_literals, allKlausurCopy, allTermine, allRaeume, ctx);
                     if(retmodel != null){
                         return retmodel;
@@ -157,33 +156,32 @@ public class Main{
     }
 
     /**
-     * Es werden Klausuren auf einzelne Raeume geplant. Jedoch nur Klausuren geplant, die in der SplitingMap als eine 1 makiert sind.
-     * Diese Funktion erstellt zu jedem Literal eine Reihe von Implikationen um zu modellieren, dass eine Klausur nur einmal stattfindet und,
-     * dass keine andere Klausur dort stattfinden, wo bereits die geplante sattfindent(wechselseitiger ausschluss). Diese Teilformeln werden
+     * Es werden Klausuren auf einzelne Räume geplant. Jedoch nur Klausuren geplant, die in der SplitingMap als eine 1 markiert sind.
+     * Diese Funktion erstellt zu jedem Literal eine Reihe von Implikationen, um zu modellieren, dass eine Klausur nur einmal stattfindet und
+     * dass keine andere Klausur dort stattfindet, wo bereits die geplante stattfindet (wechselseitiger Ausschluss). Diese Teilformeln werden
      * in einer Liste gespeichert, die zurückgegeben wird.
-     * @param allLiterals Alle möglichen Kombinationen aus Klausuren, Terminen und Raeumen in einem Array aus BoolExpr.
-     * @param allKlausuren Die eingelesenen Daten über die verfühgbaren Klausuren.
-     * @param allTermine Die eingelesenen Daten über die verfühgbaren Termine.
-     * @param allRaeume Die eingelesenen Daten über die verfühgbaren Raeume.
+     * @param allLiterals Alle möglichen Kombinationen aus Klausuren, Terminen und Räumen in einem Array aus BoolExpr.
+     * @param allKlausuren Die eingelesenen Daten über die verfügbaren Klausuren.
+     * @param allTermine Die eingelesenen Daten über die verfügbaren Termine.
+     * @param allRaeume Die eingelesenen Daten über die verfügbaren Räume.
      * @param ctx Der Context von dem Sat-Solver Z3.
      * @param splitMap Informationsmap über jede Klausur, ob diese Klausur entweder keinen Split erfordert, einen 2er Split oder einen 3er Split.
      * @return Liste mit Teilformeln von Klausuren, die in einen Raum passen und geplant wurden.
-     * @throws TestFailedException Wenn der Plan nicht erstellt werden konnte, wird eine TestFailedException erzeugt.
-     * @throws Z3Exception Wenn es beim Erzeugen von BoolExpr zu Fehlern kommt wird diese Z3 Exception generiert.
+     * @throws Z3Exception Wenn es beim Erzeugen von BoolExpr zu Fehlern kommt, wird diese Z3 Exception generiert.
      */
-    private static List<BoolExpr> mkNoKlausurSplit (BoolExpr[][][] allLiterals, List<Klausur> allKlausuren, List<Termin> allTermine, List<Raum> allRaeume, Context ctx, HashMap <Integer, Integer> splitMap)throws TestFailedException, Z3Exception{
-        //---------------Declaration start-------------------------
+    private static List<BoolExpr> mkNoKlausurSplit (BoolExpr[][][] allLiterals, List<Klausur> allKlausuren, List<Termin> allTermine, List<Raum> allRaeume, Context ctx, HashMap <Integer, Integer> splitMap)throws Z3Exception{
+        //Beginn der Deklaration
         List<BoolExpr> ret = new LinkedList<>();
         //List<Klausur> already_planted = new LinkedList<>();
         List<BoolExpr> klausur_is_written_once = new LinkedList<>();
         List<BoolExpr> implication_list = new LinkedList<>();
-        BoolExpr[] temp_array;//Used to create arrays out of lists.
-        //---------------Declaration end---------------------------
+        BoolExpr[] temp_array; //Wird verwendet, um ein Array aus Listen zu generieren
+        //Ende der Deklaration
         for(int k = 0; k < allKlausuren.size(); k++) {
             if (splitMap.get(k) == 1){
                 for (int t = 0; t < allTermine.size(); t++) {
                     if((!allKlausuren.get(k).getWunschTermin().isEmpty() || !allKlausuren.get(k).getMussTermin().isEmpty()) &&
-                        !(allKlausuren.get(k).getWunschTermin().contains(allTermine.get(t).getName()) || allKlausuren.get(k).getMussTermin().contains(allTermine.get(t).getName()))){
+                            !(allKlausuren.get(k).getWunschTermin().contains(allTermine.get(t).getName()) || allKlausuren.get(k).getMussTermin().contains(allTermine.get(t).getName()))){
                         continue;
                     }
                     for (int r = 0; r < allRaeume.size(); r++) {
@@ -218,39 +216,38 @@ public class Main{
                 temp_array = new BoolExpr[klausur_is_written_once.size()];
                 temp_array = klausur_is_written_once.toArray(temp_array);
                 ret.add(ctx.mkOr(temp_array));
-                klausur_is_written_once.clear();//öö
+                klausur_is_written_once.clear();
             }
         }
         return ret;
     }
 
     /**
-     * Es werden Klausuren auf zwei Raeume geplant. Jedoch nur Klausuren geplant, die in der SplitingMap als eine 2 makiert sind.
-     * Diese Funktion erstellt zu jedem Literal eine Reihe von Implikationen um zu modellieren, dass eine Klausur nur einmal stattfindet und,
-     * dass keine andere Klausur dort stattfinden, wo bereits die geplante sattfindent(wechselseitiger ausschluss). Diese Teilformeln werden
+     * Es werden Klausuren auf zwei Räume geplant. Jedoch nur Klausuren geplant, die in der SplitingMap als eine 2 markiert sind.
+     * Diese Funktion erstellt zu jedem Literal eine Reihe von Implikationen, um zu modellieren, dass eine Klausur nur einmal stattfindet und
+     * dass keine andere Klausur dort stattfindet, wo bereits die geplante stattfindet (wechselseitiger Ausschluss). Diese Teilformeln werden
      * in einer Liste gespeichert, die zurückgegeben wird.
-     * @param allLiterals Alle möglichen Kombinationen aus Klausuren, Terminen und Raeumen in einem Array aus BoolExpr.
-     * @param allKlausuren Die eingelesenen Daten über die verfühgbaren Klausuren.
-     * @param allTermine Die eingelesenen Daten über die verfühgbaren Termine.
-     * @param allRaeume Die eingelesenen Daten über die verfühgbaren Raeume.
+     * @param allLiterals Alle möglichen Kombinationen aus Klausuren, Terminen und Räumen in einem Array aus BoolExpr.
+     * @param allKlausuren Die eingelesenen Daten über die verfügbaren Klausuren.
+     * @param allTermine Die eingelesenen Daten über die verfügbaren Termine.
+     * @param allRaeume Die eingelesenen Daten über die verfügbaren Räume.
      * @param ctx Der Context von dem Sat-Solver Z3.
      * @param splitMap Informationsmap über jede Klausur, ob diese Klausur entweder keinen Split erfordert, einen 2er Split oder einen 3er Split.
-     * @return Liste mit Teilformeln von Klausuren, die auf 2 Raeume geplant wurden.
-     * @throws TestFailedException Wenn der Plan nicht erstellt werden konnte, wird eine Z3Exception erzeugt.
-     * @throws Z3Exception Wenn es beim Erzeugen von BoolExpr zu Fehlern kommt wird diese Exception generiert.
+     * @return Liste mit Teilformeln von Klausuren, die auf 2 Räume geplant wurden.
+     * @throws Z3Exception Wenn es beim Erzeugen von BoolExpr zu Fehlern kommt, wird diese Exception generiert.
      */
-    private static List<BoolExpr> mkKlausurSplitTwoRooms (BoolExpr[][][] allLiterals, List<Klausur> allKlausuren, List<Termin> allTermine, List<Raum> allRaeume, Context ctx, HashMap <Integer, Integer> splitMap)throws TestFailedException, Z3Exception {
-        //---------------Declaration start-------------------------
+    private static List<BoolExpr> mkKlausurSplitTwoRooms (BoolExpr[][][] allLiterals, List<Klausur> allKlausuren, List<Termin> allTermine, List<Raum> allRaeume, Context ctx, HashMap <Integer, Integer> splitMap)throws Z3Exception {
+        //Beginn der Deklaration
         List<BoolExpr> ret = new LinkedList<>();
         List<BoolExpr> klausur_is_written_once = new LinkedList<>();
         List<BoolExpr> implication_list = new LinkedList<>();
-        BoolExpr[] temp_array;//Used to create arrays out of lists.
-        //---------------Declaration end---------------------------
+        BoolExpr[] temp_array; //Wird verwendet, um ein Array aus Listen zu generieren
+        //Ende der Deklaration
         for (int k = 0; k < allKlausuren.size(); k++) {
             if (splitMap.get(k) == 2){
                 for (int t = 0; t < allTermine.size(); t++) {
                     if((!allKlausuren.get(k).getWunschTermin().isEmpty() || !allKlausuren.get(k).getMussTermin().isEmpty()) &&
-                        !(allKlausuren.get(k).getWunschTermin().contains(allTermine.get(t).getName()) || allKlausuren.get(k).getMussTermin().contains(allTermine.get(t).getName()))){
+                            !(allKlausuren.get(k).getWunschTermin().contains(allTermine.get(t).getName()) || allKlausuren.get(k).getMussTermin().contains(allTermine.get(t).getName()))){
                         continue;
                     }
                     for (int r_1 = 0; r_1 < allRaeume.size(); r_1++) {
@@ -298,40 +295,39 @@ public class Main{
     }
 
     /**
-     * Es werden Klausuren auf drei Raeume geplant. Jedoch nur Klausuren geplant, die in der SplitingMap als eine 3 makiert sind.
-     * Diese Funktion erstellt zu jedem Literal eine Reihe von Implikationen um zu modellieren, dass eine Klausur nur einmal stattfindet und,
+     * Es werden Klausuren auf drei Räume geplant. Jedoch nur Klausuren geplant, die in der SplitingMap als eine 3 markiert sind.
+     * Diese Funktion erstellt zu jedem Literal eine Reihe von Implikationen, um zu modellieren, dass eine Klausur nur einmal stattfindet und
      * dass keine andere Klausur dort stattfinden, wo bereits die geplante sattfindent(wechselseitiger ausschluss). Diese Teilformeln werden
      * in einer Liste gespeichert, die zurückgegeben wird.
-     * @param allLiterals Alle möglichen Kombinationen aus Klausuren, Terminen und Raeumen in einem Array aus BoolExpr.
-     * @param allKlausuren Die eingelesenen Daten über die verfühgbaren Klausuren.
-     * @param allTermine Die eingelesenen Daten über die verfühgbaren Termine.
-     * @param allRaeume Die eingelesenen Daten über die verfühgbaren Raeume.
+     * @param allLiterals Alle möglichen Kombinationen aus Klausuren, Terminen und Räumen in einem Array aus BoolExpr.
+     * @param allKlausuren Die eingelesenen Daten über die verfügbaren Klausuren.
+     * @param allTermine Die eingelesenen Daten über die verfügbaren Termine.
+     * @param allRaeume Die eingelesenen Daten über die verfügbaren Räume.
      * @param ctx Der Context von dem Sat-Solver Z3.
      * @param splitMap Informationsmap über jede Klausur, ob diese Klausur entweder keinen Split erfordert, einen 2er Split oder einen 3er Split.
-     * @return Liste mit Teilformeln von Klausuren, die auf 3 Raeume geplant wurden.
-     * @throws TestFailedException Wenn der Plan nicht erstellt werden konnte, wird eine TestFailedException erzeugt.
-     * @throws Z3Exception Wenn es beim Erzeugen von BoolExpr zu Fehlern kommt wird diese Z3 Exception generiert.
+     * @return Liste mit Teilformeln von Klausuren, die auf 3 Räume geplant wurden.
+     * @throws Z3Exception Wenn es beim Erzeugen von BoolExpr zu Fehlern kommt, wird diese Z3 Exception generiert.
      */
-    private static List<BoolExpr> mkKlausurSplitTreeRooms (BoolExpr[][][] allLiterals, List<Klausur> allKlausuren, List<Termin> allTermine, List<Raum> allRaeume, Context ctx, HashMap <Integer, Integer> splitMap)throws TestFailedException, Z3Exception{
-        //---------------Declaration start-------------------------
+    private static List<BoolExpr> mkKlausurSplitTreeRooms (BoolExpr[][][] allLiterals, List<Klausur> allKlausuren, List<Termin> allTermine, List<Raum> allRaeume, Context ctx, HashMap <Integer, Integer> splitMap)throws Z3Exception{
+        //Beginn der Deklaration
         List<BoolExpr> ret = new LinkedList<>();
         List<BoolExpr> klausur_is_written_once = new LinkedList<>();
         List<BoolExpr> implication_list = new LinkedList<>();
-        BoolExpr[] temp_array;//Used to create arrays out of lists.
-        //---------------Declaration end---------------------------
+        BoolExpr[] temp_array;//Wird verwendet, um ein Array aus Listen zu generieren
+        //Ende der Deklaration
         for(int k = 0; k < allKlausuren.size(); k++){
             if (splitMap.get(k) == 3){
                 for (int t = 0; t < allTermine.size(); t++) {
                     if((!allKlausuren.get(k).getWunschTermin().isEmpty() || !allKlausuren.get(k).getMussTermin().isEmpty()) &&
-                        !(allKlausuren.get(k).getWunschTermin().contains(allTermine.get(t).getName()) || allKlausuren.get(k).getMussTermin().contains(allTermine.get(t).getName()))){
+                            !(allKlausuren.get(k).getWunschTermin().contains(allTermine.get(t).getName()) || allKlausuren.get(k).getMussTermin().contains(allTermine.get(t).getName()))){
                         continue;
                     }
                     for (int r_1 = 0; r_1 < allRaeume.size(); r_1++) {
                         if (allKlausuren.get(k).getTeilnehmer() >= allRaeume.get(r_1).getKapazitaet() && !allTermine.get(t).getRaum().contains(allRaeume.get(r_1))) {
-                            for (int r_2 = 0; r_2 < allRaeume.size(); r_2++) {
-                                if (r_1 != r_2 && allKlausuren.get(k).getTeilnehmer() >= allRaeume.get(r_1).getKapazitaet() + allRaeume.get(r_2).getKapazitaet() && !allTermine.get(t).getRaum().contains(allRaeume.get(r_2))) {
-                                    for (int r_3 = 0; r_3 < allRaeume.size(); r_3++) {
-                                        if (r_1 != r_2 && r_2 != r_3 && r_1 != r_3 && allKlausuren.get(k).getTeilnehmer() <= allRaeume.get(r_1).getKapazitaet() + allRaeume.get(r_2).getKapazitaet() + allRaeume.get(r_3).getKapazitaet()
+                            for (int r_2 = r_1+1; r_2 < allRaeume.size(); r_2++) {
+                                if (allKlausuren.get(k).getTeilnehmer() >= allRaeume.get(r_1).getKapazitaet() + allRaeume.get(r_2).getKapazitaet() && !allTermine.get(t).getRaum().contains(allRaeume.get(r_2))) {
+                                    for (int r_3 = r_2+1; r_3 < allRaeume.size(); r_3++) {
+                                        if (allKlausuren.get(k).getTeilnehmer() <= allRaeume.get(r_1).getKapazitaet() + allRaeume.get(r_2).getKapazitaet() + allRaeume.get(r_3).getKapazitaet()
                                                 && !allTermine.get(t).getRaum().contains(allRaeume.get(r_3))) {
                                             BoolExpr temp = ctx.mkAnd(allLiterals[k][t][r_1], allLiterals[k][t][r_2], allLiterals[k][t][r_3]);
                                             klausur_is_written_once.add(temp);
@@ -377,23 +373,22 @@ public class Main{
     }
 
     /**
-     * Bei aufruf dieser Methode steht fest, dass Alle klausuren in nur einen Raum passen. Es wird eine SplitingMap erzeugt,
-     * in der nur der Wert 1 für jede Klausur gespeichert wird. Nachdem werden die Teilformeln durch den Aufruf von mkNoKlausurSplit ermittelt.
-     * Danach wird der Sat-Solver nach einem möglichen Model befragt und dies zurück gegeben. Bei einem Fehlschlag wird Null zurück gegeben.
+     * Beim Aufruf dieser Methode steht fest, dass alle Klausuren in nur einen Raum passen. Es wird eine SplitingMap erzeugt,
+     * in der nur der Wert 1 für jede Klausur gespeichert wird. Danach werden die Teilformeln durch den Aufruf von mkNoKlausurSplit ermittelt.
+     * Danach wird der Sat-Solver nach einem möglichen Model befragt und dieses zurückgegeben. Bei einem Fehlschlag wird Null zurückgegeben.
      * @param allLiterals Alle möglichen Kombinationen aus Klausuren, Terminen und Raeumen in einem Array aus BoolExpr.
-     * @param allKlausuren Die eingelesenen Daten über die verfühgbaren Klausuren.
-     * @param allTermine Die eingelesenen Daten über die verfühgbaren Termine.
-     * @param allRaeume Die eingelesenen Daten über die verfühgbaren Raeume.
+     * @param allKlausuren Die eingelesenen Daten über die verfügbaren Klausuren.
+     * @param allTermine Die eingelesenen Daten über die verfügbaren Termine.
+     * @param allRaeume Die eingelesenen Daten über die verfügbaren Räume.
      * @param ctx Der Context von dem Sat-Solver Z3.
-     * @return Falls ein Model gefunden wird, wird dies zurückgegeben. Falls nicht wird null zurück gegeben.
-     * @throws TestFailedException Wenn der Plan nicht erstellt werden konnte, wird eine TestFailedException erzeugt.
-     * @throws Z3Exception Wenn es beim Erzeugen von BoolExpr zu Fehlern kommt wird diese Z3 Exception generiert.
+     * @return Falls ein Model gefunden wird, wird dies zurückgegeben. Falls nicht, wird null zurückgegeben.
+     * @throws Z3Exception Wenn es beim Erzeugen von BoolExpr zu Fehlern kommt, wird diese Z3 Exception generiert.
      */
-    private static Model noSplit(BoolExpr[][][] allLiterals, List<Klausur> allKlausuren, List<Termin> allTermine, List<Raum> allRaeume, Context ctx)throws TestFailedException, Z3Exception{
+    private static Model noSplit(BoolExpr[][][] allLiterals, List<Klausur> allKlausuren, List<Termin> allTermine, List<Raum> allRaeume, Context ctx)throws Z3Exception{
         List<BoolExpr> formulas = new LinkedList<>();
         List<BoolExpr> part_formulas;
         List<Klausur> klausur_not_split = new LinkedList<>();
-                      klausur_not_split.addAll(allKlausuren);
+        klausur_not_split.addAll(allKlausuren);
         Solver s = ctx.mkSolver();
         HashMap <Integer, Integer> klausuren_spliting_map = new HashMap<>();
 
@@ -408,7 +403,7 @@ public class Main{
         for(BoolExpr b : formulas){
             s.add(b);
         }
-        System.out.println("Versuche auf keinen Raum zu spliten.");
+        System.out.println("Versuche auf keinen Raum zu splitten.");
         if(s.check() != Status.UNSATISFIABLE){
             System.out.println("GESCHAFFT!");
             return s.getModel();
@@ -417,26 +412,25 @@ public class Main{
     }
 
     /**
-     * Bei aufruf dieser Methode steht fest, dass nicht alle klausuren in einen Raum passen. Es wird eine SplitingMap erzeugt,
-     * in der Klausuren mit Teilnehmern unter splitWert (momentan 30) mit einer 1 makiert werden und darüber mit einer 2.
-     * Nachdem werden die Teilformeln durch den Aufruf von mkNoKlausurSplit und mkKlausurSplitTwoRooms ermittelt.
-     * Danach wird der Sat-Solver nach einem möglichen Model befragt und dies zurück gegeben. Bei einem Fehlschlag wird Null zurück gegeben.
-     * @param allLiterals Alle möglichen Kombinationen aus Klausuren, Terminen und Raeumen in einem Array aus BoolExpr.
-     * @param allKlausuren Die eingelesenen Daten über die verfühgbaren Klausuren.
-     * @param allTermine Die eingelesenen Daten über die verfühgbaren Termine.
-     * @param allRaeume Die eingelesenen Daten über die verfühgbaren Raeume.
+     * Beim Aufruf dieser Methode steht fest, dass nicht alle Klausuren in einen Raum passen. Es wird eine SplitingMap erzeugt,
+     * in der Klausuren mit Teilnehmern unter splitWert (momentan 30) mit einer 1 markiert werden und darüber mit einer 2.
+     * Danach werden die Teilformeln durch den Aufruf von mkNoKlausurSplit und mkKlausurSplitTwoRooms ermittelt.
+     * Danach wird der Sat-Solver nach einem möglichen Model befragt und dieses zurückgegeben. Bei einem Fehlschlag wird Null zurückgegeben.
+     * @param allLiterals Alle möglichen Kombinationen aus Klausuren, Terminen und Räumen in einem Array aus BoolExpr.
+     * @param allKlausuren Die eingelesenen Daten über die verfügbaren Klausuren.
+     * @param allTermine Die eingelesenen Daten über die verfügbaren Termine.
+     * @param allRaeume Die eingelesenen Daten über die verfügbaren Räume.
      * @param ctx Der Context von dem Sat-Solver Z3.
-     * @return Falls ein Model gefunden wird, wird dies zurückgegeben. Falls nicht wird null zurück gegeben.
-     * @throws TestFailedException Wenn der Plan nicht erstellt werden konnte, wird eine TestFailedException erzeugt.
-     * @throws Z3Exception Wenn es beim Erzeugen von BoolExpr zu Fehlern kommt wird diese Z3 Exception generiert.
+     * @return Falls ein Model gefunden wird, wird dieses zurückgegeben. Falls nicht, wird Null zurückgegeben.
+     * @throws Z3Exception Wenn es beim Erzeugen von BoolExpr zu Fehlern kommt, wird diese Z3 Exception generiert.
      */
-    private static Model splitTwoNoSplit(BoolExpr[][][] allLiterals, List<Klausur> allKlausuren, List<Termin> allTermine, List<Raum> allRaeume, Context ctx)throws TestFailedException, Z3Exception{
+    private static Model splitTwoNoSplit(BoolExpr[][][] allLiterals, List<Klausur> allKlausuren, List<Termin> allTermine, List<Raum> allRaeume, Context ctx)throws Z3Exception{
         List<BoolExpr> formulas = new LinkedList<>();
-        List<BoolExpr> part_formulas = new LinkedList<>();
+        List<BoolExpr> part_formulas;
         Solver s = ctx.mkSolver();
         HashMap <Integer, Integer> klausuren_spliting_map = new HashMap<>();
 
-        System.out.println("Versuche auf keinen oder zwei Räume zu spliten.");
+        System.out.println("Versuche auf keinen oder zwei Räume zu splitten.");
 
         for(int k = 0; k < allKlausuren.size(); k++){
             if(allKlausuren.get(k).getTeilnehmer()>splitWert){
@@ -462,27 +456,26 @@ public class Main{
     }
 
     /**
-     * Bei aufruf dieser Methode steht fest, dass nicht alle klausuren in einen oder 2 Raeume passen. Es wird eine SplitingMap erzeugt,
-     * in der Klausuren mit Teilnehmern unter splitWert (momentan 30) mit einer 1 makiert werden, darüber mit einer 2 und Klausuren,
-     * die über eine größere Teilnehmeranzahl als splitWert * 2 verfühgen mit einer 3.
-     * Nachdem werden die Teilformeln durch den Aufruf von mkNoKlausurSplit und mkKlausurSplitTwoRooms ermittelt.
-     * Danach wird der Sat-Solver nach einem möglichen Model befragt und dies zurück gegeben. Bei einem Fehlschlag wird Null zurück gegeben.
+     * Beim Aufruf dieser Methode steht fest, dass nicht alle Klausuren in einen oder 2 Räume passen. Es wird eine SplitingMap erzeugt,
+     * in der Klausuren mit Teilnehmern unter splitWert (momentan 30) mit einer 1 markiert werden, darüber mit einer 2 und Klausuren,
+     * die über eine größere Teilnehmeranzahl als splitWert * 2 verfügen mit einer 3.
+     * Danach werden die Teilformeln durch den Aufruf von mkNoKlausurSplit und mkKlausurSplitTwoRooms ermittelt.
+     * Danach wird der Sat-Solver nach einem möglichen Model befragt und dies zurückgegeben. Bei einem Fehlschlag wird Null zurückgegeben.
      * @param allLiterals Alle möglichen Kombinationen aus Klausuren, Terminen und Raeumen in einem Array aus BoolExpr.
-     * @param allKlausuren Die eingelesenen Daten über die verfühgbaren Klausuren.
-     * @param allTermine Die eingelesenen Daten über die verfühgbaren Termine.
-     * @param allRaeume Die eingelesenen Daten über die verfühgbaren Raeume.
+     * @param allKlausuren Die eingelesenen Daten über die verfügbaren Klausuren.
+     * @param allTermine Die eingelesenen Daten über die verfügbaren Termine.
+     * @param allRaeume Die eingelesenen Daten über die verfügbaren Räume.
      * @param ctx Der Context von dem Sat-Solver Z3.
-     * @return Falls ein Model gefunden wird, wird dies zurückgegeben. Falls nicht wird null zurück gegeben.
-     * @throws TestFailedException Wenn der Plan nicht erstellt werden konnte, wird eine TestFailedException erzeugt.
-     * @throws Z3Exception Wenn es beim Erzeugen von BoolExpr zu Fehlern kommt wird diese Z3 Exception generiert.
+     * @return Falls ein Model gefunden wird, wird dieses zurückgegeben. Falls nicht, wird Null zurückgegeben.
+     * @throws Z3Exception Wenn es beim Erzeugen von BoolExpr zu Fehlern kommt, wird diese Z3 Exception generiert.
      */
-    private static Model splitTwoSplitTreeNoSplit(BoolExpr[][][] allLiterals, List<Klausur> allKlausuren, List<Termin> allTermine, List<Raum> allRaeume, Context ctx)throws TestFailedException, Z3Exception{
+    private static Model splitTwoSplitTreeNoSplit(BoolExpr[][][] allLiterals, List<Klausur> allKlausuren, List<Termin> allTermine, List<Raum> allRaeume, Context ctx)throws Z3Exception{
         List<BoolExpr> formulas = new LinkedList<>();
-        List<BoolExpr> part_formulas = new LinkedList<>();
+        List<BoolExpr> part_formulas;
         Solver s = ctx.mkSolver();
         HashMap<Integer, Integer> klausuren_spliting_map = new HashMap<>();
 
-        System.out.println("Versuche auf keinen, zwei oder Drei zu spliten.");
+        System.out.println("Versuche auf keinen, zwei oder Drei zu splitten.");
 
         for (int k = 0; k < allKlausuren.size(); k++) {
             if(allKlausuren.get(k).getTeilnehmer() > splitWert*2){
@@ -561,7 +554,7 @@ public class Main{
             if(wunschTermin != null){
                 for(String s : wunschTermin){
                     if(!s.equals(""))
-                    klausur.addWunschTermin(s);
+                        klausur.addWunschTermin(s);
                 }
             }
             if(mussTermin != null){
@@ -639,8 +632,8 @@ public class Main{
                     if(raumname[0].equals("")){
                         break;
                     }
-                    for(int r_index = 0; r_index < raumname.length; r_index++){
-                        if(ra.getName().contains(raumname[r_index]) && !raumname[r_index].equals("")){
+                    for (String aRaumname : raumname) {
+                        if (ra.getName().contains(aRaumname) && !aRaumname.equals("")) {
                             termin.addRaum(ra);
                         }
                     }
@@ -717,11 +710,10 @@ public class Main{
                 break;
             }
         }
-        return;
     }
 
     /**
-     * Sucht 2 Klausuren, deren Teilnehmeranzahl unter mergWert (momentan 5) liegen und nicht den gleichen Studiengang haben.
+     * Sucht 2 Klausuren, deren Teilnehmeranzahl unter mergeWert (momentan 5) liegen und nicht den gleichen Studiengang haben.
      * Außerdem muss dem Programm als ARGS-Parameter 3 ein Boolischer-Wert gegeben werden, welcher bestimmt ob zusammen gelegt werden soll.
      * Diese Klausuren werden dann in einer Liste gespeichert.
      * @param allKlausuren Klausurenliste, aus welcher Klausuren zusammengelegt werden sollen.
@@ -732,7 +724,7 @@ public class Main{
 
         for(Klausur k1 : allKlausuren){
             for(Klausur k2 : allKlausuren){
-                if(k1.getTeilnehmer() <= mergWert && k2.getTeilnehmer() <= mergWert &&
+                if(k1.getTeilnehmer() <= mergeWert && k2.getTeilnehmer() <= mergeWert &&
                         checkStudiengang(k1, k2) && k1 != k2 &&
                         !ret.contains(k1) && !ret.contains(k2)){
                     ret.add(k1);
@@ -830,13 +822,15 @@ public class Main{
      * @param allRaeume Die eingelesenen Daten über die verfühgbaren Raeume.
      */
     private static void mkPlan(Model model, List<Klausur> allKlausuren, List<Termin> allTermine, List<Raum> allRaeume){
-        String plan = "";
+        String plan;
         String [] klausurenplan;
+        StringBuilder planBuilder = new StringBuilder();
         for(String s : model.toString().split("\n")){
             if(s.contains("-> true")){
-                plan += s;
+                planBuilder.append(s);
             }
         }
+        plan = planBuilder.toString();
         plan = plan.replaceAll("-> true", "");
         klausurenplan = plan.split(" ");
 
@@ -873,10 +867,10 @@ public class Main{
                     planraum.add(r);
                 }
             }
-            if(planklausur != null && plantermin != null){
+            if(plantermin != null){
                 for(Raum r : planraum){
                     if(planklausur[0].getTerminmap().get(plantermin) != null){
-                            planklausur[0].addRaum(plantermin, r);
+                        planklausur[0].addRaum(plantermin, r);
                     }else{
                         planklausur[0].addTermin(plantermin);
                         planklausur[0].addRaum(plantermin, r);
@@ -904,61 +898,61 @@ public class Main{
         LinkedList<Klausur> klausurenNachStudiengang = new LinkedList<>();
         LinkedList<Termin> termineNachStudiengang = new LinkedList<>();
 
-        for(int i = 0; i < allStudiengaenge.size(); i++){
-            for(Klausur k : allKlausuren){
-                for(String s : k.getStudiengang()){
-                    if(allStudiengaenge.get(i).equals(s) && !klausurenNachStudiengang.contains(k)){
+        for (String anAllStudiengaenge : allStudiengaenge) {
+            for (Klausur k : allKlausuren) {
+                for (String s : k.getStudiengang()) {
+                    if (anAllStudiengaenge.equals(s) && !klausurenNachStudiengang.contains(k)) {
                         klausurenNachStudiengang.add(k);
-                        for(Termin t : k.getTerminmap().keySet()){
-                            if(!termineNachStudiengang.contains(t)){
+                        for (Termin t : k.getTerminmap().keySet()) {
+                            if (!termineNachStudiengang.contains(t)) {
                                 termineNachStudiengang.add(t);
                             }
                         }
                     }
                 }
             }
-            String[][] klausurplan = new String[klausurenNachStudiengang.size()+1][termineNachStudiengang.size()+1];
-            for(int k = 0; k < klausurenNachStudiengang.size(); k++){
-                klausurplan[k+1][0] = klausurenNachStudiengang.get(k).getName();
+            String[][] klausurplan = new String[klausurenNachStudiengang.size() + 1][termineNachStudiengang.size() + 1];
+            for (int k = 0; k < klausurenNachStudiengang.size(); k++) {
+                klausurplan[k + 1][0] = klausurenNachStudiengang.get(k).getName();
             }
-            for(int t = 0; t < termineNachStudiengang.size(); t++){
-                klausurplan[0][t+1] = termineNachStudiengang.get(t).getName();
+            for (int t = 0; t < termineNachStudiengang.size(); t++) {
+                klausurplan[0][t + 1] = termineNachStudiengang.get(t).getName();
             }
-            for(int k = 0; k < klausurenNachStudiengang.size(); k++){
+            for (int k = 0; k < klausurenNachStudiengang.size(); k++) {
                 HashMap<Termin, List<Raum>> temp = klausurenNachStudiengang.get(k).getTerminmap();
-                for(Termin t : temp.keySet()){
-                    for(int t_2 = 0; t_2 < termineNachStudiengang.size(); t_2++){
-                        if(t.equals(termineNachStudiengang.get(t_2))){
-                            for(Raum r : temp.get(t)){
-                                klausurplan[k+1][t_2+1] += r.getName() + " ";
+                for (Termin t : temp.keySet()) {
+                    for (int t_2 = 0; t_2 < termineNachStudiengang.size(); t_2++) {
+                        if (t.equals(termineNachStudiengang.get(t_2))) {
+                            for (Raum r : temp.get(t)) {
+                                klausurplan[k + 1][t_2 + 1] += r.getName() + " ";
                             }
                         }
                     }
                 }
             }
-            try{
-                FileWriter fw = new FileWriter("Plan " + allStudiengaenge.get(i) + ".csv");
+            try {
+                FileWriter fw = new FileWriter("Plan " + anAllStudiengaenge + ".csv");
                 BufferedWriter bw = new BufferedWriter(fw);
-                for(int row = 0; row < klausurplan[0].length; row ++){
-                    for(int column = 0; column < klausurplan.length; column ++){
-                        if(klausurplan[column][row] == null){
+                for (int row = 0; row < klausurplan[0].length; row++) {
+                    for (String[] aKlausurplan : klausurplan) {
+                        if (aKlausurplan[row] == null) {
                             bw.write(",");
-                        }else{
-                            bw.write(klausurplan[column][row].replace("null", "") + ",");
+                        } else {
+                            bw.write(aKlausurplan[row].replace("null", "") + ",");
                         }
                     }
                     bw.write("\n");
                 }
                 bw.close();
                 fw.close();
-            }catch ( IOException e){
+            } catch (IOException e) {
                 System.err.println(e);
             }
             klausurenNachStudiengang.clear();
             termineNachStudiengang.clear();
         }
 
-        Map<Integer, String> ausgabemap = new TreeMap<Integer, String>();
+        Map<Integer, String> ausgabemap = new TreeMap<>();
         for(String s : klausurenplan){
             String [] ausgabeplan = s.split("_");
             int key = Integer.parseInt(ausgabeplan[0].replace("K", ""));
@@ -973,6 +967,5 @@ public class Main{
         for(int i : ausgabemap.keySet()){
             System.out.println(ausgabemap.get(i));
         }
-        return;
     }
 }
